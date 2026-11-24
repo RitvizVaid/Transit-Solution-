@@ -34,6 +34,9 @@ class LiveConnection {
   private readonly standListeners = new Set<Listener<StandStatus>>();
   private readonly vehicleListeners = new Set<Listener<VehiclePosition>>();
   private readonly removedListeners = new Set<Listener<string>>();
+  private readonly vehicleSourceListeners = new Set<
+    Listener<Extract<ServerMessage, { type: 'vehicle.source.status' }>['payload']>
+  >();
   private readonly openListeners = new Set<Listener<boolean>>();
   private wanted = 0;
 
@@ -72,6 +75,8 @@ class LiveConnection {
         this.vehicleListeners.forEach((l) => l(msg.payload));
       else if (msg.type === 'vehicle.removed')
         this.removedListeners.forEach((l) => l(msg.payload.vehicleId));
+      else if (msg.type === 'vehicle.source.status')
+        this.vehicleSourceListeners.forEach((l) => l(msg.payload));
     };
     ws.onclose = () => {
       this.ws = null;
@@ -123,6 +128,13 @@ class LiveConnection {
   onVehicleRemoved(l: Listener<string>) {
     this.removedListeners.add(l);
     return () => void this.removedListeners.delete(l);
+  }
+
+  onVehicleSourceStatus(
+    l: Listener<Extract<ServerMessage, { type: 'vehicle.source.status' }>['payload']>,
+  ) {
+    this.vehicleSourceListeners.add(l);
+    return () => void this.vehicleSourceListeners.delete(l);
   }
 
   onOpenChange(l: Listener<boolean>) {

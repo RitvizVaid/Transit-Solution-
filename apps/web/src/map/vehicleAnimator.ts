@@ -1,4 +1,8 @@
-import type { VehiclePosition } from '@transit/shared-types';
+import {
+  DELHI_POSITION_MAX_AGE_MS,
+  type VehiclePosition,
+  type VehicleSource,
+} from '@transit/shared-types';
 import type { LngLat } from './geometry';
 
 interface Track {
@@ -41,7 +45,12 @@ export class VehicleAnimator {
   frame(now: number, animate = true): { vehicle: VehiclePosition; at: LngLat }[] {
     const out: { vehicle: VehiclePosition; at: LngLat }[] = [];
     for (const [id, t] of this.tracks) {
-      if (now - t.t0 > this.staleMs) {
+      const observedAt = Date.parse(t.last.timestamp);
+      const stale =
+        t.last.source === 'delhi-otd'
+          ? !Number.isFinite(observedAt) || Date.now() - observedAt > DELHI_POSITION_MAX_AGE_MS
+          : now - t.t0 > this.staleMs;
+      if (stale) {
         this.tracks.delete(id);
         continue;
       }
@@ -52,6 +61,12 @@ export class VehicleAnimator {
 
   remove(vehicleId: string): void {
     this.tracks.delete(vehicleId);
+  }
+
+  removeSource(source: VehicleSource): void {
+    for (const [id, track] of this.tracks) {
+      if (track.last.source === source) this.tracks.delete(id);
+    }
   }
 
   clear(): void {

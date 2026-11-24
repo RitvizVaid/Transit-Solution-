@@ -41,6 +41,10 @@ Do not promise reduced congestion without a separately designed evaluation.
 - Before importing external feeds, validate calendar exceptions, multiple frequency
   windows, service-day boundaries and parser compatibility (UI-14); choose the pilot
   city and configure its search and map consistently (UI-16).
+- The inspected Delhi bus GTFS has scheduled trips, no frequency or fare files, and
+  millions of stop times. Implement timetable-aware routing and unknown fare states
+  rather than inventing headways or free fares; benchmark loading and routing within
+  deployment memory limits. Verify permissions and attribution before publication.
 - Agree identity, moderation, rate limiting, report deduplication, retention and storage
   before opening reporting to the public (UI-06, UI-08). Design for unreliable networks.
 - Invite commuters to suggest missing routes and corrections (UI-10/UI-11), initially

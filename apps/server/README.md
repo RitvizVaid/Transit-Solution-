@@ -35,7 +35,18 @@ routes, and duplicates; returns up to 3 within 1.6× (+10 min) of the best.
 
 Fares: each ride is a separate ticket, `max(min, min + (km − base_km) × per_km)` rounded up to ₹5.
 
+The built-in planner is not a general scheduled-GTFS router. It rejects trips without
+frequency rows, multiple frequency windows per trip and exact scheduled frequencies.
+Calendars and exceptions are not yet evaluated. Do not configure the official Delhi
+bus schedule as `GTFS_DIR` until timetable routing, fare handling and feed-scale
+performance have been implemented and verified.
+
 ## Live data
+
+- With `DELHI_OTD_API_KEY`, an optional server-side poller publishes recent Delhi Open
+  Transit Data bus positions separately from the demo and crowd-shared vehicles.
+  It does not match buses to demo routes or estimate their arrivals. See
+  [deployment](../../docs/DEPLOYMENT.md#delhi-bus-positions) before enabling it.
 
 - `POST /api/v1/telemetry/reports` (driver portal) updates `StandStore`; each change is pushed
   to WebSocket subscribers and immediately affects plans (waits, congestion). Tokens are

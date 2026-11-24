@@ -55,6 +55,7 @@ The API needs:
 | `RATE_LIMIT`          | default on; `off` only for local end-to-end tests             |
 | `OTP_URL`             | optional, see below                                           |
 | `GTFS_DIR`            | already set in the image; rebuild after `pnpm data:build`    |
+| `DELHI_OTD_API_KEY`   | optional API-server secret for Delhi bus positions; unset disables polling |
 
 For local Docker Compose, set `REPORT_TOKENS_JSON` in an ignored `.env` file at the
 repository root. Example shape (replace every placeholder with a random secret):
@@ -71,6 +72,21 @@ database directory and run a single API instance.
 The platform must support WebSockets (all of the above do). Stand state is in memory:
 run **one** API instance until `StandStore` is backed by Redis (see `apps/server/README.md`).
 Shared rides and rate-limit counters are in memory too.
+
+### Delhi bus positions
+
+The optional feed polls the Delhi Open Transit Data vehicle-position endpoint every
+30 seconds. Set `DELHI_OTD_API_KEY` only in the API server's secret environment, never
+in a `VITE_` variable, source or browser. Review the
+[provider terms](https://otd.delhi.gov.in/terms) and confirm access, redistribution,
+attribution and polling limits before enabling it. Check `/health` for `delhiRealtime`
+status; do not assume an `ok` poll means every bus is represented. Positions older
+than 90 seconds or missing observation timestamps are omitted. The map attributes
+the bus positions to Delhi Open Transit Data and distinguishes them from crowd reports.
+This layer does not supply bus routes, trip plans or arrival predictions. The separately
+configured planning network remains the unsurveyed demo until a suitable static feed
+and timetable-aware routing are verified. Test provider compatibility privately with a
+replacement key before deploying.
 
 ## OpenTripPlanner (optional)
 

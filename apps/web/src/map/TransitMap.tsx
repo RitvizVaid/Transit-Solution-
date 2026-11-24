@@ -62,6 +62,7 @@ export default function TransitMap(props: MapViewProps) {
   propsRef.current = props;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [delhiFeedStatus, setDelhiFeedStatus] = useState<'starting' | 'ok' | 'error' | null>(null);
   const markers = useRef<Record<'origin' | 'destination' | 'user', maplibregl.Marker | null>>({
     origin: null,
     destination: null,
@@ -169,8 +170,15 @@ export default function TransitMap(props: MapViewProps) {
             ['case', ['get', 'crowd'], 9, 7],
           ],
           'circle-color': ['get', 'color'],
-          'circle-stroke-color': ['case', ['get', 'crowd'], '#0f172a', '#ffffff'],
-          'circle-stroke-width': ['case', ['get', 'crowd'], 2.5, 1.5],
+          'circle-stroke-color': [
+            'case',
+            ['get', 'delhiOtd'],
+            '#f59e0b',
+            ['get', 'crowd'],
+            '#0f172a',
+            '#ffffff',
+          ],
+          'circle-stroke-width': ['case', ['get', 'delhiOtd'], 2.5, ['get', 'crowd'], 2.5, 1.5],
         },
       });
 
@@ -307,7 +315,17 @@ export default function TransitMap(props: MapViewProps) {
     });
     const offVehicle = live.onVehicle((v) => animator.update(v, performance.now()));
     const offRemoved = live.onVehicleRemoved((id) => animator.remove(id));
-    const offOpen = live.onOpenChange((open) => open && sendBbox());
+    const offSource = live.onVehicleSourceStatus(({ status }) => {
+      setDelhiFeedStatus(status);
+      if (status === 'error') animator.removeSource('delhi-otd');
+    });
+    const offOpen = live.onOpenChange((open) => {
+      if (open) sendBbox();
+      else {
+        setDelhiFeedStatus((status) => (status === null ? null : 'error'));
+        animator.removeSource('delhi-otd');
+      }
+    });
     map.on('moveend', sendBbox);
     sendBbox();
 
@@ -319,8 +337,12 @@ export default function TransitMap(props: MapViewProps) {
           features: frame.map(({ vehicle, at }) => ({
             type: 'Feature',
             properties: {
-              color: colors.get(vehicle.routeId ?? '') ?? '#334155',
+              color:
+                vehicle.source === 'delhi-otd'
+                  ? '#2563eb'
+                  : (colors.get(vehicle.routeId ?? '') ?? '#334155'),
               crowd: vehicle.source === 'crowd',
+              delhiOtd: vehicle.source === 'delhi-otd',
             },
             geometry: { type: 'Point', coordinates: at },
           })),
@@ -335,6 +357,7 @@ export default function TransitMap(props: MapViewProps) {
       offStand();
       offVehicle();
       offRemoved();
+      offSource();
       offOpen();
       live.setBbox(null);
       release();
@@ -440,6 +463,19 @@ export default function TransitMap(props: MapViewProps) {
       {failed && (
         <p className="absolute inset-x-0 top-20 text-center text-xs font-medium text-slate-500">
           Map unavailable offline. Routes still work.
+        </p>
+      )}
+      {delhiFeedStatus && (
+        <p
+          role="status"
+          className="absolute right-3 top-16 rounded-lg bg-white/95 px-2 py-1 text-xs text-slate-800 shadow"
+        >
+          {delhiFeedStatus === 'starting'
+            ? 'Loading Delhi bus positions'
+            : delhiFeedStatus === 'error'
+              ? 'Delhi bus positions unavailable'
+              : 'Blue dots with amber outline: recent Delhi buses'}
+          {' · '}Source: Delhi Open Transit Data
         </p>
       )}
     </section>

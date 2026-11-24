@@ -13,6 +13,7 @@ import { rideRoutes } from './routes/rides.js';
 import { standRoutes } from './routes/stands.js';
 import { suggestionRoutes } from './routes/suggestions.js';
 import { telemetryRoutes } from './routes/telemetry.js';
+import { DelhiRealtime } from './services/delhiRealtime.js';
 import { OtpClient } from './services/otp.js';
 import { Planner } from './services/planner.js';
 import { PlanService } from './services/planService.js';
@@ -31,6 +32,7 @@ export interface Transit {
   stands: StandStore;
   planner: PlanService;
   hub: LiveHub;
+  delhiRealtime?: DelhiRealtime;
   reports: ReportRepository;
   /** Commuter route suggestions awaiting review. */
   suggestions: SuggestionRepository;
@@ -75,6 +77,21 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
   const stands = new StandStore(network, clock);
   stands.restore(reports.recentReports(clock()));
   const hub = new LiveHub(() => stands.list());
+  const delhiRealtime = config.delhiOtdApiKey
+    ? new DelhiRealtime(
+        config.delhiOtdApiKey,
+        (positions) => hub.publishDelhiVehicles(positions),
+        (status) => hub.publishDelhiStatus(status),
+        (message) => app.log.warn(message),
+        fetchImpl,
+        clock,
+      )
+    : undefined;
+  if (delhiRealtime) {
+    hub.publishDelhiStatus('starting');
+    app.addHook('onReady', async () => delhiRealtime.start());
+    app.addHook('onClose', async () => delhiRealtime.stop());
+  }
   const rides = new RideTracker(network, clock);
   const perMinute = (n: number) => new RateLimiter(n, 60_000, clock);
   const limits = config.rateLimits
@@ -96,6 +113,7 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
     stands,
     planner,
     hub,
+    delhiRealtime,
     reports,
     suggestions,
     rides,

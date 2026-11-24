@@ -49,6 +49,12 @@ New capabilities in the same change: commuters can share the vehicle they ride (
 arrival estimates for stops ahead, occupancy), and the planner scales each route's own wait
 by stand reports and checks service hours when the rider reaches each ride.
 
+Subsequent local integration: the optional Delhi bus position layer is separate from
+crowd and simulated vehicles, but has only been tested with synthetic protobuf data.
+Provider access, actual timestamps, polling limits, attribution and deployed behavior
+remain to be verified. For UI-14, the loader now rejects scheduled trips and unsupported
+frequency windows, but does not yet support calendars or timetable-based routing.
+
 ## Workflow
 
 Pick one bounded ID, inspect the linked code and related feature, agree on behavior and

@@ -90,6 +90,60 @@ test.describe('map (C2)', () => {
     expect(after).not.toBe(before);
   });
 
+  test('shows Delhi bus positions separately and preserves rider vehicles on feed failure', async ({
+    isolated: page,
+  }) => {
+    let failFeed = () => {
+      throw new Error('WebSocket not connected');
+    };
+    await page.routeWebSocket('**/api/v1/live', (socket) => {
+      failFeed = () =>
+        socket.send(
+          JSON.stringify({
+            type: 'vehicle.source.status',
+            payload: { source: 'delhi-otd', status: 'error' },
+          }),
+        );
+      socket.onMessage((raw) => {
+        const message = JSON.parse(String(raw)) as { type: string };
+        if (message.type !== 'subscribe.bbox') return;
+        socket.send(
+          JSON.stringify({
+            type: 'vehicle.source.status',
+            payload: { source: 'delhi-otd', status: 'ok' },
+          }),
+        );
+        for (const [vehicleId, source] of [
+          ['bus', 'delhi-otd'],
+          ['rider', 'crowd'],
+        ]) {
+          socket.send(
+            JSON.stringify({
+              type: 'vehicle.position',
+              payload: {
+                vehicleId,
+                source,
+                mode: 'BUS',
+                coordinates: [77.2296, 28.6662],
+                timestamp: new Date().toISOString(),
+              },
+            }),
+          );
+        }
+      });
+    });
+    await page.goto(planUrl(KG_METRO, undefined, '&debug=map'));
+    await waitForMap(page);
+    await expect(
+      page.getByText('Blue dots with amber outline: recent Delhi buses', { exact: false }),
+    ).toBeVisible();
+    await expect.poll(async () => (await sourceFeatures(page, 'vehicles')).length).toBe(2);
+    failFeed();
+    await expect(page.getByText('Delhi bus positions unavailable', { exact: false })).toBeVisible();
+    await expect.poll(async () => (await sourceFeatures(page, 'vehicles')).length).toBe(1);
+    expect((await sourceFeatures(page, 'vehicles'))[0]?.properties.crowd).toBe(true);
+  });
+
   test('long-press (touch) / right-click (mouse) on the map sets the destination', async ({
     isolated: page,
     context,

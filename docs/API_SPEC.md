@@ -198,6 +198,13 @@ them with operators. 10 a minute per IP.
 
 ## WebSocket /api/v1/live
 
+When enabled, Delhi bus positions have `source: "delhi-otd"` and no demo `routeId`.
+Viewport subscribers receive `vehicle.source.status` (`starting`, `ok` or `error`)
+and `vehicle.removed` when positions disappear. Positions lacking observation
+timestamps or older than 90 seconds are excluded. `/health` reports the feed status
+and last successful poll without exposing the key. An `ok` status does not establish
+complete coverage or a connection to the static planning network.
+
 Client → server (`ClientMessage`):
 
 ```json

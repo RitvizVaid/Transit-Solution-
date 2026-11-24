@@ -43,6 +43,7 @@ with a sample trip; that does not verify its data in the field.
 | F-22 | Trustworthy nearby guidance | **Partial:** nearby results and a closest-line fallback exist; failures of the fallback are suppressed by [nearby hook](../apps/web/src/hooks/useNearbyLines.ts). Walking and boarding feasibility are not verified. | UI-19, UI-05 |
 | F-23 | Service disruptions and changes | **Planned:** show independently sourced route closures, diversions and service interruptions with source, validity and expiry; manual reports need review and no alerts must not imply normal service. | UI-11, UI-14, F-09 |
 | F-24 | Inclusive multi-stop journey research | **Planned:** investigate costs and transfers for multi-stop trips, accessibility and safer boarding with diverse local participants. Do not rank routes as “safe” without reliable evidence. | UI-04, UI-05, UI-07 |
+| F-25 | Delhi bus positions | **Partial:** optional server-side [real-time poller](../apps/server/src/services/delhiRealtime.ts) and attributed map markers, separate from crowd-shared vehicles. Provider access and deployment remain unverified; no bus routing or arrival predictions are supplied. | UI-14, F-09 |
 
 ## Updating this register
 

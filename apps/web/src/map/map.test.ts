@@ -105,4 +105,30 @@ describe('VehicleAnimator', () => {
     expect(a.frame(16_000)).toHaveLength(0);
     expect(a.size).toBe(0);
   });
+
+  it('expires Delhi observations independently and removes only the failed source', () => {
+    const a = new VehicleAnimator();
+    a.update({ ...ping('crowd', 77, 28), source: 'crowd' }, 0);
+    a.update(
+      {
+        ...ping('old-bus', 77, 28),
+        mode: 'BUS',
+        source: 'delhi-otd',
+        timestamp: new Date(Date.now() - 91_000).toISOString(),
+      },
+      0,
+    );
+    a.update(
+      {
+        ...ping('new-bus', 77, 28),
+        mode: 'BUS',
+        source: 'delhi-otd',
+        timestamp: new Date().toISOString(),
+      },
+      0,
+    );
+    expect(a.frame(1).map(({ vehicle }) => vehicle.vehicleId)).toEqual(['crowd', 'new-bus']);
+    a.removeSource('delhi-otd');
+    expect(a.frame(2).map(({ vehicle }) => vehicle.vehicleId)).toEqual(['crowd']);
+  });
 });

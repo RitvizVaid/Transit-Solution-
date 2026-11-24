@@ -122,7 +122,27 @@ export class TransitNetwork {
       }
     }
 
-    const freqByTrip = new Map(read('frequencies.txt', false).map((f) => [f.trip_id!, f]));
+    const freqByTrip = new Map<string, Record<string, string>>();
+    for (const frequency of read('frequencies.txt', false)) {
+      const tripId = frequency.trip_id;
+      if (!tripId || freqByTrip.has(tripId)) {
+        throw new Error('Unsupported GTFS: missing trip ID or multiple frequency windows');
+      }
+      if (frequency.exact_times === '1') {
+        throw new Error('Unsupported GTFS: exact scheduled frequency trips');
+      }
+      const headway = Number(frequency.headway_secs);
+      if (!Number.isFinite(headway) || headway <= 0) {
+        throw new Error('Invalid GTFS: frequency headway must be positive');
+      }
+      freqByTrip.set(tripId, frequency);
+    }
+    const tripRows = read('trips.txt');
+    if (tripRows.some((trip) => !trip.trip_id || !freqByTrip.has(trip.trip_id))) {
+      throw new Error(
+        'Unsupported GTFS: scheduled trips without frequencies cannot be used by the built-in planner',
+      );
+    }
     const shapes = new Map<string, { seq: number; p: LatLng }[]>();
     for (const s of read('shapes.txt', false)) {
       const list = shapes.get(s.shape_id!) ?? [];
@@ -134,7 +154,6 @@ export class TransitNetwork {
     }
 
     const routeRows = read('routes.txt');
-    const tripRows = read('trips.txt');
     const stopTimes = new Map<string, Record<string, string>[]>();
     for (const st of read('stop_times.txt')) {
       const list = stopTimes.get(st.trip_id!) ?? [];
@@ -173,8 +192,7 @@ export class TransitNetwork {
         .map((r) => net.stops.get(r.stop_id!))
         .filter((s): s is NetworkStop => !!s);
       const shape = new MeasuredLine(shapePts.length >= 2 ? shapePts : stopPts);
-      const freq = freqByTrip.get(trip.trip_id!);
-      const lastArrival = toSecs(rows[rows.length - 1]!.arrival_time!);
+      const freq = freqByTrip.get(trip.trip_id!)!;
 
       let cumStraight = 0;
       const stops = rows.map((r, i) => {
@@ -196,9 +214,9 @@ export class TransitNetwork {
         headsign: trip.trip_headsign || net.stops.get(rows[rows.length - 1]!.stop_id!)?.name || '',
         stops,
         shape,
-        serviceStartSec: freq ? toSecs(freq.start_time!) : t0,
-        serviceEndSec: freq ? toSecs(freq.end_time!) : lastArrival,
-        headwaySec: freq ? Number(freq.headway_secs) : 1800,
+        serviceStartSec: toSecs(freq.start_time!),
+        serviceEndSec: toSecs(freq.end_time!),
+        headwaySec: Number(freq.headway_secs),
       });
     }
 

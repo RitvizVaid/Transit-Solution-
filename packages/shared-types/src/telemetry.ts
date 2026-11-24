@@ -66,9 +66,10 @@ export interface StandReport {
 export const OCCUPANCY_LEVELS = ['seats_available', 'standing_only', 'full'] as const;
 export type Occupancy = (typeof OCCUPANCY_LEVELS)[number];
 
-/** `crowd` = a commuter sharing their ride; `simulated` = demo traffic, never real. */
-export const VEHICLE_SOURCES = ['crowd', 'simulated'] as const;
+/** `delhi-otd` positions are independent of the demo route network. */
+export const VEHICLE_SOURCES = ['crowd', 'simulated', 'delhi-otd'] as const;
 export type VehicleSource = (typeof VEHICLE_SOURCES)[number];
+export const DELHI_POSITION_MAX_AGE_MS = 90_000;
 
 export interface VehiclePosition {
   vehicleId: string;
@@ -164,6 +165,10 @@ export interface ArrivalsResponse {
 /** Server to client. */
 export type ServerMessage =
   | { type: 'vehicle.position'; payload: VehiclePosition }
+  | {
+      type: 'vehicle.source.status';
+      payload: { source: 'delhi-otd'; status: 'starting' | 'ok' | 'error' };
+    }
   /** The vehicle left the map (e.g. its rider stopped sharing). */
   | { type: 'vehicle.removed'; payload: { vehicleId: string } }
   | { type: 'stand.status'; payload: StandStatus };

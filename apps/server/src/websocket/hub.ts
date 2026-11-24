@@ -1,8 +1,9 @@
-import type {
-  ClientMessage,
-  ServerMessage,
-  StandStatus,
-  VehiclePosition,
+import {
+  DELHI_POSITION_MAX_AGE_MS,
+  type ClientMessage,
+  type ServerMessage,
+  type StandStatus,
+  type VehiclePosition,
 } from '@transit/shared-types';
 
 type BBox = [west: number, south: number, east: number, north: number];
@@ -30,6 +31,8 @@ const inBox = ([lng, lat]: [number, number], [w, s, e, n]: BBox) =>
 export class LiveHub {
   private readonly clients = new Set<Client>();
   private vehicles: VehiclePosition[] = [];
+  private delhiVehicles: VehiclePosition[] = [];
+  private delhiStatus: 'starting' | 'ok' | 'error' | null = null;
 
   constructor(private readonly standSnapshot: () => StandStatus[]) {}
 
@@ -62,10 +65,23 @@ export class LiveHub {
         const b = msg.bbox;
         if (!Array.isArray(b) || b.length !== 4 || !b.every(Number.isFinite)) return;
         client.bbox = b;
+        if (this.delhiStatus) {
+          this.send(client, {
+            type: 'vehicle.source.status',
+            payload: { source: 'delhi-otd', status: this.delhiStatus },
+          });
+        }
         for (const s of this.standSnapshot())
           if (inBox(s.coordinates, b)) this.send(client, { type: 'stand.status', payload: s });
         for (const v of this.vehicles)
           if (inBox(v.coordinates, b)) this.send(client, { type: 'vehicle.position', payload: v });
+        for (const v of this.delhiVehicles) {
+          if (
+            inBox(v.coordinates, b) &&
+            Date.now() - Date.parse(v.timestamp) <= DELHI_POSITION_MAX_AGE_MS
+          )
+            this.send(client, { type: 'vehicle.position', payload: v });
+        }
         break;
       }
       case 'subscribe.stands': {
@@ -114,6 +130,35 @@ export class LiveHub {
       if (!c.bbox) continue;
       for (const v of positions)
         if (inBox(v.coordinates, c.bbox)) this.send(c, { type: 'vehicle.position', payload: v });
+    }
+  }
+
+  publishDelhiVehicles(positions: VehiclePosition[]) {
+    const nextIds = new Set(positions.map((v) => v.vehicleId));
+    for (const vehicle of this.delhiVehicles) {
+      if (nextIds.has(vehicle.vehicleId)) continue;
+      for (const client of this.clients) {
+        if (client.bbox)
+          this.send(client, { type: 'vehicle.removed', payload: { vehicleId: vehicle.vehicleId } });
+      }
+    }
+    this.delhiVehicles = positions;
+    for (const client of this.clients) {
+      if (!client.bbox) continue;
+      for (const vehicle of positions)
+        if (inBox(vehicle.coordinates, client.bbox))
+          this.send(client, { type: 'vehicle.position', payload: vehicle });
+    }
+  }
+
+  publishDelhiStatus(status: 'starting' | 'ok' | 'error') {
+    this.delhiStatus = status;
+    for (const client of this.clients) {
+      if (client.bbox)
+        this.send(client, {
+          type: 'vehicle.source.status',
+          payload: { source: 'delhi-otd', status },
+        });
     }
   }
 }

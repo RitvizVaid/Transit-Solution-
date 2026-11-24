@@ -19,7 +19,8 @@
     "@fastify/websocket": "^11.3.7",
     "@transit/shared-types": "workspace:*",
     "better-sqlite3": "^13.2.0",
-    "fastify": "^5.12.8"
+    "fastify": "^5.12.8",
+    "gtfs-realtime-bindings": "^1.1.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
