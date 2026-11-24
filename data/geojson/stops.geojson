@@ -1,0 +1,415 @@
+{
+  "type": "FeatureCollection",
+  "name": "delhi-pilot-stops",
+  "description": "Boarding points for the Old Delhi pilot. Hand-placed from OSM; refine with field GPS traces. is_stand = marshalled auto/e-rickshaw stand with live reports; virtual = informal pick-up point with no marking.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "civil-lines-metro",
+        "name": "Civil Lines Metro",
+        "is_stand": false,
+        "virtual": false,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.225,
+          28.6766
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "isbt-mini-1",
+        "name": "ISBT Minibus Bay",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.228,
+          28.668
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "kg-metro-gate2",
+        "name": "Kashmere Gate Metro Gate 2",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2289,
+          28.6671
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "kg-auto-1",
+        "name": "Kashmere Gate Auto Stand",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2296,
+          28.6662
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "mori-gate",
+        "name": "Mori Gate",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2255,
+          28.6665
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "lothian-bridge",
+        "name": "Lothian Bridge",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2288,
+          28.664
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "gpo",
+        "name": "GPO Lothian Road",
+        "is_stand": false,
+        "virtual": false,
+        "zone": "NORTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2301,
+          28.6628
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "odrs-1",
+        "name": "Old Delhi Railway Station",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2275,
+          28.661
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "cc-metro",
+        "name": "Chandni Chowk Metro",
+        "is_stand": false,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2302,
+          28.6582
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "town-hall",
+        "name": "Town Hall",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2268,
+          28.6578
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "fatehpuri",
+        "name": "Fatehpuri Masjid",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2216,
+          28.6563
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "ccm-auto-1",
+        "name": "Chandni Chowk Stand",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.231,
+          28.656
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "sis-ganj",
+        "name": "Gurudwara Sis Ganj",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2336,
+          28.6561
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "rf-1",
+        "name": "Red Fort Parking",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.241,
+          28.6562
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "jama-masjid-g1",
+        "name": "Jama Masjid Gate 1",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.234,
+          28.6515
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "nai-sarak",
+        "name": "Nai Sarak",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2276,
+          28.654
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "chawri-bazar",
+        "name": "Chawri Bazar Metro",
+        "is_stand": false,
+        "virtual": false,
+        "zone": "OLD"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.226,
+          28.6493
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "ajmeri-gate",
+        "name": "Ajmeri Gate",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.224,
+          28.6445
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "ndls-ajmeri",
+        "name": "New Delhi Railway Station (Ajmeri Gate side)",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2195,
+          28.643
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "minto-bridge",
+        "name": "Minto Bridge",
+        "is_stand": false,
+        "virtual": true,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2225,
+          28.637
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "rajiv-chowk-g5",
+        "name": "Rajiv Chowk Gate 5",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2197,
+          28.6328
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "daryaganj",
+        "name": "Daryaganj",
+        "is_stand": false,
+        "virtual": false,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.2405,
+          28.644
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "delhi-gate",
+        "name": "Delhi Gate",
+        "is_stand": false,
+        "virtual": false,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.241,
+          28.64
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "ito",
+        "name": "ITO",
+        "is_stand": true,
+        "virtual": false,
+        "zone": "SOUTH"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.241,
+          28.6286
+        ]
+      }
+    }
+  ]
+}

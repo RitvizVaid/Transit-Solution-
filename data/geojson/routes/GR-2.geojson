@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "GR-2",
+        "short_name": "GR-2",
+        "long_name": "Kashmere Gate - Old Delhi Rly Stn - Fatehpuri",
+        "mode": "SHARED_TAXI",
+        "color": "EAB308",
+        "stops": [
+          "kg-auto-1",
+          "lothian-bridge",
+          "odrs-1",
+          "fatehpuri"
+        ],
+        "headway_min": {
+          "min": 5,
+          "max": 10
+        },
+        "service": {
+          "start": "05:30",
+          "end": "22:30"
+        },
+        "avg_speed_kmh": 15,
+        "fare": {
+          "min_fare": 15,
+          "base_km": 2,
+          "per_km": 6,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.2296,
+            28.6662
+          ],
+          [
+            77.2288,
+            28.664
+          ],
+          [
+            77.228,
+            28.6622
+          ],
+          [
+            77.2275,
+            28.661
+          ],
+          [
+            77.225,
+            28.659
+          ],
+          [
+            77.223,
+            28.6572
+          ],
+          [
+            77.2216,
+            28.6563
+          ]
+        ]
+      }
+    }
+  ]
+}

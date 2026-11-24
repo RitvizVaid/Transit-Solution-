@@ -1,0 +1,66 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "NS-8",
+        "short_name": "NS-8",
+        "long_name": "Chandni Chowk - Nai Sarak - Chawri Bazar",
+        "mode": "E_RICKSHAW",
+        "color": "65A30D",
+        "stops": [
+          "cc-metro",
+          "nai-sarak",
+          "chawri-bazar"
+        ],
+        "headway_min": {
+          "min": 2,
+          "max": 4
+        },
+        "service": {
+          "start": "08:00",
+          "end": "21:30"
+        },
+        "avg_speed_kmh": 8,
+        "fare": {
+          "min_fare": 10,
+          "base_km": 1,
+          "per_km": 5,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; links the Chandni Chowk and New Delhi Rly Stn clusters"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.2302,
+            28.6582
+          ],
+          [
+            77.229,
+            28.6572
+          ],
+          [
+            77.2283,
+            28.6566
+          ],
+          [
+            77.2276,
+            28.654
+          ],
+          [
+            77.2268,
+            28.6515
+          ],
+          [
+            77.226,
+            28.6493
+          ]
+        ]
+      }
+    }
+  ]
+}

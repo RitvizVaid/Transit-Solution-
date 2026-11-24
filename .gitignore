@@ -1,0 +1,67 @@
+# ---------------------------------------------------------------------------
+# Node / pnpm workspaces
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Python (data/pipelines)
+# ---------------------------------------------------------------------------
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Generated routing data (OTP graphs, large raw traces)
+deploy/otp/*.obj
+deploy/otp/*.pbf
+deploy/otp/*.zip
+data/raw/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.DS_Store
+*.swp
+*.log
+.idea/
+*.iml
+.history
+
+# ---------------------------------------------------------------------------
+# Legacy Flutter/Dart reference code (legacy/trufi-core-flutter)
+# ---------------------------------------------------------------------------
+/legacy/trufi-core-flutter/pubspec.lock
+**/doc/api/
+.dart_tool/
+build/
+.flutter-plugins-dependencies
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/flutter_export_environment.plist
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+legacy/trufi-core-flutter/apps/*/tools/*/out/*.json
+!legacy/trufi-core-flutter/apps/example/assets/search/search.json
+legacy/trufi-core-flutter/apps/*/tools/*/package-lock.json
+
+# Playwright
+/e2e/test-results/
+/e2e/playwright-report/
+/test-results/
+/playwright-report/
+
+# Generated stand QR sheets
+/tools/stand-qr/out/

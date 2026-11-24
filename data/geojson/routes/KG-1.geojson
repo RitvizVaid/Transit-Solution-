@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "KG-1",
+        "short_name": "KG-1",
+        "long_name": "Kashmere Gate - Chandni Chowk",
+        "mode": "AUTO_RICKSHAW",
+        "color": "16A34A",
+        "stops": [
+          "kg-auto-1",
+          "gpo",
+          "cc-metro",
+          "ccm-auto-1"
+        ],
+        "headway_min": {
+          "min": 3,
+          "max": 5
+        },
+        "service": {
+          "start": "06:00",
+          "end": "23:00"
+        },
+        "avg_speed_kmh": 14,
+        "fare": {
+          "min_fare": 20,
+          "base_km": 1.5,
+          "per_km": 8,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.2296,
+            28.6662
+          ],
+          [
+            77.2299,
+            28.6645
+          ],
+          [
+            77.2301,
+            28.6628
+          ],
+          [
+            77.2302,
+            28.66
+          ],
+          [
+            77.2302,
+            28.6582
+          ],
+          [
+            77.2306,
+            28.657
+          ],
+          [
+            77.231,
+            28.656
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# Build context: repository root.
+#   docker build -f deploy/Dockerfile.server -t transit-server .
+FROM node:24-alpine AS base
+RUN corepack enable
+WORKDIR /repo
+
+FROM base AS build
+COPY . .
+RUN pnpm install --frozen-lockfile \
+ && pnpm --filter @transit/server... build \
+ && pnpm --filter @transit/server deploy --prod --legacy /out
+
+FROM node:24-alpine AS runtime
+ENV NODE_ENV=production \
+    PORT=3000 \
+    GTFS_DIR=/app/data/gtfs/delhi-pilot
+WORKDIR /app
+COPY --from=build /out .
+# The GTFS feed the API routes on. Rebuild the image after `pnpm data:build`.
+COPY data/gtfs/delhi-pilot ./data/gtfs/delhi-pilot
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+  CMD wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1
+CMD ["node", "dist/index.js"]

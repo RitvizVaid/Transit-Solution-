@@ -1,0 +1,17 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,shape_id
+CC-RF,DAILY,CC-RF-d0,Red Fort Parking,0,CC-RF-s0
+CC-RF,DAILY,CC-RF-d1,Fatehpuri Masjid,1,CC-RF-s1
+CL-6,DAILY,CL-6-d0,Kashmere Gate Auto Stand,0,CL-6-s0
+CL-6,DAILY,CL-6-d1,Civil Lines Metro,1,CL-6-s1
+GR-2,DAILY,GR-2-d0,Fatehpuri Masjid,0,GR-2-s0
+GR-2,DAILY,GR-2-d1,Kashmere Gate Auto Stand,1,GR-2-s1
+JM-3,DAILY,JM-3-d0,New Delhi Railway Station (Ajmeri Gate side),0,JM-3-s0
+JM-3,DAILY,JM-3-d1,Jama Masjid Gate 1,1,JM-3-s1
+KG-1,DAILY,KG-1-d0,Chandni Chowk Stand,0,KG-1-s0
+KG-1,DAILY,KG-1-d1,Kashmere Gate Auto Stand,1,KG-1-s1
+M-14,DAILY,M-14-d0,ITO,0,M-14-s0
+M-14,DAILY,M-14-d1,ISBT Minibus Bay,1,M-14-s1
+NR-5,DAILY,NR-5-d0,Rajiv Chowk Gate 5,0,NR-5-s0
+NR-5,DAILY,NR-5-d1,New Delhi Railway Station (Ajmeri Gate side),1,NR-5-s1
+NS-8,DAILY,NS-8-d0,Chawri Bazar Metro,0,NS-8-s0
+NS-8,DAILY,NS-8-d1,Chandni Chowk Metro,1,NS-8-s1

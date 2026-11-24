@@ -1,0 +1,9 @@
+route_id,min_fare,base_km,per_km,currency
+CC-RF,10.00,1.0,5.0,INR
+CL-6,10.00,1.0,5.0,INR
+GR-2,15.00,2.0,6.0,INR
+JM-3,10.00,1.0,5.0,INR
+KG-1,20.00,1.5,8.0,INR
+M-14,10.00,3.0,2.0,INR
+NR-5,20.00,1.5,9.0,INR
+NS-8,10.00,1.0,5.0,INR

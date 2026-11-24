@@ -1,0 +1,76 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "CC-RF",
+        "short_name": "CC-RF",
+        "long_name": "Fatehpuri - Chandni Chowk - Red Fort",
+        "mode": "E_RICKSHAW",
+        "color": "0EA5E9",
+        "stops": [
+          "fatehpuri",
+          "town-hall",
+          "ccm-auto-1",
+          "sis-ganj",
+          "rf-1"
+        ],
+        "headway_min": {
+          "min": 2,
+          "max": 4
+        },
+        "service": {
+          "start": "07:00",
+          "end": "22:00"
+        },
+        "avg_speed_kmh": 9,
+        "fare": {
+          "min_fare": 10,
+          "base_km": 1,
+          "per_km": 5,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.2216,
+            28.6563
+          ],
+          [
+            77.224,
+            28.657
+          ],
+          [
+            77.2268,
+            28.6578
+          ],
+          [
+            77.229,
+            28.6568
+          ],
+          [
+            77.231,
+            28.656
+          ],
+          [
+            77.2336,
+            28.6561
+          ],
+          [
+            77.237,
+            28.6562
+          ],
+          [
+            77.241,
+            28.6562
+          ]
+        ]
+      }
+    }
+  ]
+}

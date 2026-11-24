@@ -1,0 +1,25 @@
+stop_id,stop_name,stop_lat,stop_lon,location_type,zone_id,is_stand,informal_stop
+ajmeri-gate,Ajmeri Gate,28.644500,77.224000,0,SOUTH,0,1
+cc-metro,Chandni Chowk Metro,28.658200,77.230200,0,OLD,0,0
+ccm-auto-1,Chandni Chowk Stand,28.656000,77.231000,0,OLD,1,0
+chawri-bazar,Chawri Bazar Metro,28.649300,77.226000,0,OLD,0,0
+civil-lines-metro,Civil Lines Metro,28.676600,77.225000,0,NORTH,0,0
+daryaganj,Daryaganj,28.644000,77.240500,0,SOUTH,0,0
+delhi-gate,Delhi Gate,28.640000,77.241000,0,SOUTH,0,0
+fatehpuri,Fatehpuri Masjid,28.656300,77.221600,0,OLD,1,0
+gpo,GPO Lothian Road,28.662800,77.230100,0,NORTH,0,0
+isbt-mini-1,ISBT Minibus Bay,28.668000,77.228000,0,NORTH,1,0
+ito,ITO,28.628600,77.241000,0,SOUTH,1,0
+jama-masjid-g1,Jama Masjid Gate 1,28.651500,77.234000,0,OLD,1,0
+kg-auto-1,Kashmere Gate Auto Stand,28.666200,77.229600,0,NORTH,1,0
+kg-metro-gate2,Kashmere Gate Metro Gate 2,28.667100,77.228900,0,NORTH,0,1
+lothian-bridge,Lothian Bridge,28.664000,77.228800,0,NORTH,0,1
+minto-bridge,Minto Bridge,28.637000,77.222500,0,SOUTH,0,1
+mori-gate,Mori Gate,28.666500,77.225500,0,NORTH,0,1
+nai-sarak,Nai Sarak,28.654000,77.227600,0,OLD,0,1
+ndls-ajmeri,New Delhi Railway Station (Ajmeri Gate side),28.643000,77.219500,0,SOUTH,1,0
+odrs-1,Old Delhi Railway Station,28.661000,77.227500,0,OLD,1,0
+rajiv-chowk-g5,Rajiv Chowk Gate 5,28.632800,77.219700,0,SOUTH,1,0
+rf-1,Red Fort Parking,28.656200,77.241000,0,OLD,1,0
+sis-ganj,Gurudwara Sis Ganj,28.656100,77.233600,0,OLD,0,1
+town-hall,Town Hall,28.657800,77.226800,0,OLD,0,1

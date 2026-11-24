@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "CL-6",
+        "short_name": "CL-6",
+        "long_name": "Civil Lines - Kashmere Gate",
+        "mode": "E_RICKSHAW",
+        "color": "0D9488",
+        "stops": [
+          "civil-lines-metro",
+          "mori-gate",
+          "isbt-mini-1",
+          "kg-auto-1"
+        ],
+        "headway_min": {
+          "min": 4,
+          "max": 7
+        },
+        "service": {
+          "start": "06:30",
+          "end": "22:00"
+        },
+        "avg_speed_kmh": 9,
+        "fare": {
+          "min_fare": 10,
+          "base_km": 1,
+          "per_km": 5,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.225,
+            28.6766
+          ],
+          [
+            77.2252,
+            28.672
+          ],
+          [
+            77.2255,
+            28.6665
+          ],
+          [
+            77.2268,
+            28.6672
+          ],
+          [
+            77.228,
+            28.668
+          ],
+          [
+            77.229,
+            28.667
+          ],
+          [
+            77.2296,
+            28.6662
+          ]
+        ]
+      }
+    }
+  ]
+}

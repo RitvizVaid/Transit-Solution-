@@ -1,0 +1,9 @@
+route_id,agency_id,route_short_name,route_long_name,route_type,route_color,route_text_color,informal_mode,min_headway_min,max_headway_min
+CC-RF,DIT,CC-RF,Fatehpuri - Chandni Chowk - Red Fort,1501,0EA5E9,000000,E_RICKSHAW,2,4
+CL-6,DIT,CL-6,Civil Lines - Kashmere Gate,1501,0D9488,000000,E_RICKSHAW,4,7
+GR-2,DIT,GR-2,Kashmere Gate - Old Delhi Rly Stn - Fatehpuri,1501,EAB308,000000,SHARED_TAXI,5,10
+JM-3,DIT,JM-3,Jama Masjid - Chawri Bazar - New Delhi Rly Stn,1501,DB2777,FFFFFF,E_RICKSHAW,3,6
+KG-1,DIT,KG-1,Kashmere Gate - Chandni Chowk,1501,16A34A,000000,AUTO_RICKSHAW,3,5
+M-14,DIT,M-14,ISBT - Red Fort - Daryaganj - ITO,3,7C3AED,FFFFFF,MINIBUS,8,12
+NR-5,DIT,NR-5,New Delhi Rly Stn - Connaught Place,1501,EA580C,000000,AUTO_RICKSHAW,4,8
+NS-8,DIT,NS-8,Chandni Chowk - Nai Sarak - Chawri Bazar,1501,65A30D,000000,E_RICKSHAW,2,4

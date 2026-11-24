@@ -1,0 +1,127 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "M-14",
+        "short_name": "M-14",
+        "long_name": "ISBT - Red Fort - Daryaganj - ITO",
+        "mode": "MINIBUS",
+        "color": "7C3AED",
+        "stops": [
+          "isbt-mini-1",
+          "kg-metro-gate2",
+          "gpo",
+          "rf-1",
+          "daryaganj",
+          "delhi-gate",
+          "ito"
+        ],
+        "headway_min": {
+          "min": 8,
+          "max": 12
+        },
+        "service": {
+          "start": "06:00",
+          "end": "21:30"
+        },
+        "avg_speed_kmh": 16,
+        "fare": {
+          "min_fare": 10,
+          "base_km": 3,
+          "per_km": 2,
+          "currency": "INR",
+          "zones": [
+            {
+              "from": "NORTH",
+              "to": "NORTH",
+              "price": 10
+            },
+            {
+              "from": "OLD",
+              "to": "OLD",
+              "price": 10
+            },
+            {
+              "from": "SOUTH",
+              "to": "SOUTH",
+              "price": 10
+            },
+            {
+              "from": "NORTH",
+              "to": "OLD",
+              "price": 15
+            },
+            {
+              "from": "OLD",
+              "to": "SOUTH",
+              "price": 15
+            },
+            {
+              "from": "NORTH",
+              "to": "SOUTH",
+              "price": 20
+            }
+          ],
+          "zones_symmetric": true
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.228,
+            28.668
+          ],
+          [
+            77.2289,
+            28.6671
+          ],
+          [
+            77.2298,
+            28.665
+          ],
+          [
+            77.2301,
+            28.6628
+          ],
+          [
+            77.234,
+            28.66
+          ],
+          [
+            77.239,
+            28.658
+          ],
+          [
+            77.241,
+            28.6562
+          ],
+          [
+            77.2408,
+            28.65
+          ],
+          [
+            77.2405,
+            28.644
+          ],
+          [
+            77.241,
+            28.64
+          ],
+          [
+            77.241,
+            28.634
+          ],
+          [
+            77.241,
+            28.6286
+          ]
+        ]
+      }
+    }
+  ]
+}

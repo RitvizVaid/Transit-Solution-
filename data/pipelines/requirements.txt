@@ -1,0 +1,6 @@
+# The pipeline (gtfs_pipeline/) uses only the Python standard library.
+# Nothing to install for build / validate / package / cluster / tests.
+#
+# Optional, for exploratory notebooks on large raw GPS dumps:
+# pandas>=2.2
+# geopandas>=1.0

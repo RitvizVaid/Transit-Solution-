@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/coverage
+.git
+legacy
+data/raw
+deploy/otp
+**/.env
+**/.env.*

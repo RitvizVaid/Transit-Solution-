@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "JM-3",
+        "short_name": "JM-3",
+        "long_name": "Jama Masjid - Chawri Bazar - New Delhi Rly Stn",
+        "mode": "E_RICKSHAW",
+        "color": "DB2777",
+        "stops": [
+          "jama-masjid-g1",
+          "chawri-bazar",
+          "ajmeri-gate",
+          "ndls-ajmeri"
+        ],
+        "headway_min": {
+          "min": 3,
+          "max": 6
+        },
+        "service": {
+          "start": "07:00",
+          "end": "22:00"
+        },
+        "avg_speed_kmh": 9,
+        "fare": {
+          "min_fare": 10,
+          "base_km": 1,
+          "per_km": 5,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.234,
+            28.6515
+          ],
+          [
+            77.23,
+            28.6505
+          ],
+          [
+            77.226,
+            28.6493
+          ],
+          [
+            77.225,
+            28.647
+          ],
+          [
+            77.224,
+            28.6445
+          ],
+          [
+            77.2215,
+            28.6437
+          ],
+          [
+            77.2195,
+            28.643
+          ]
+        ]
+      }
+    }
+  ]
+}

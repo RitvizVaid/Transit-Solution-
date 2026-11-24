@@ -1,0 +1,4 @@
+# Generated GTFS is compared byte-for-byte in CI; keep LF everywhere.
+data/gtfs/** text eol=lf
+data/geojson/** text eol=lf
+*.sh text eol=lf

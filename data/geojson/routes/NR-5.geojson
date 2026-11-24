@@ -1,0 +1,62 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_id": "NR-5",
+        "short_name": "NR-5",
+        "long_name": "New Delhi Rly Stn - Connaught Place",
+        "mode": "AUTO_RICKSHAW",
+        "color": "EA580C",
+        "stops": [
+          "ndls-ajmeri",
+          "minto-bridge",
+          "rajiv-chowk-g5"
+        ],
+        "headway_min": {
+          "min": 4,
+          "max": 8
+        },
+        "service": {
+          "start": "05:00",
+          "end": "23:30"
+        },
+        "avg_speed_kmh": 15,
+        "fare": {
+          "min_fare": 20,
+          "base_km": 1.5,
+          "per_km": 9,
+          "currency": "INR"
+        },
+        "bidirectional": true,
+        "source": "hand-traced from OSM, 2026-11; replace with field GPS trace"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.2195,
+            28.643
+          ],
+          [
+            77.2215,
+            28.64
+          ],
+          [
+            77.2225,
+            28.637
+          ],
+          [
+            77.221,
+            28.6345
+          ],
+          [
+            77.2197,
+            28.6328
+          ]
+        ]
+      }
+    }
+  ]
+}

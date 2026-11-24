@@ -1,0 +1,62 @@
+# Local stack. From the repo root:
+#   docker compose -f deploy/docker-compose.yml up --build
+#
+#   web            http://localhost:8080
+#   driver-portal  http://localhost:8081
+#   server         http://localhost:3000   (API docs: /docs)
+#
+# With OpenTripPlanner (needs deploy/otp/delhi-pilot-gtfs.zip from `pnpm data:package`
+# and an OSM extract, e.g. deploy/otp/delhi.osm.pbf; see deploy/otp/README.md):
+#   OTP_URL=http://otp:8080 docker compose -f deploy/docker-compose.yml --profile otp up --build
+#   otp            http://localhost:8082
+#
+# Host ports are overridable: WEB_PORT, DRIVER_PORT, SERVER_PORT, OTP_PORT.
+name: transit
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    environment:
+      PORT: 3000
+      # Synthetic vehicles + stand reports so the demo looks alive. Set false for a real pilot.
+      SIMULATE: ${SIMULATE:-true}
+      # Empty = built-in planner. With the otp profile: http://otp:8080 (falls back if OTP is down).
+      OTP_URL: ${OTP_URL:-}
+    ports:
+      - '${SERVER_PORT:-3000}:3000'
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        APP: web
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      - server
+
+  driver-portal:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        APP: driver-portal
+    ports:
+      - '${DRIVER_PORT:-8081}:80'
+    depends_on:
+      - server
+
+  otp:
+    profiles: ['otp']
+    image: opentripplanner/opentripplanner:2.7.0
+    # Builds the graph from deploy/otp/*.zip (GTFS) and *.osm.pbf, then serves it.
+    command: ['--build', '--serve']
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx4g
+    volumes:
+      - ./otp:/var/opentripplanner
+    ports:
+      - '${OTP_PORT:-8082}:8080'
