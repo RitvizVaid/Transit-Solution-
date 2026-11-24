@@ -1,5 +1,9 @@
 # Transit
 
+**Live demo:** https://transit-solution-web.onrender.com/
+
+This is a demo; wait times and vehicle counts labeled "Live" are not verified real-time data.
+
 A fast, mobile-first web app (PWA) for **informal public transit**: shared autos,
 e-rickshaws, shared taxis and minibuses that run without timetables, stop where they like
 and charge by distance. Commuters plan A-to-B trips across these modes, see how busy each
