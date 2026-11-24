@@ -3,6 +3,7 @@
 Baseline: `main@6344061af6ccd2c8c4b7b0355ed8f5e45cb903cf`, 24 November 2026.
 This is an initial bounded source review, not a complete accessibility, security, usability
 or field audit. All items are **open**; priorities are proposed, not team commitments.
+The table records the original findings; see the status updates below for subsequent fixes.
 
 [Feature register](ui-feature-register.md) · [Roadmap](transit-improvement-roadmap.md)
 
@@ -27,12 +28,13 @@ or field audit. All items are **open**; priorities are proposed, not team commit
 | UI-17 | P1 | [PlannerPage](../apps/web/src/pages/PlannerPage.tsx) writes selected coordinates and names into the URL; [recentTrips](../apps/web/src/lib/recentTrips.ts) stores trips locally, while [search hook](../apps/web/src/hooks/useGeocode.ts) sends queries to a configured external geocoder. These create privacy considerations; no privacy audit was performed. | Explain what is saved, shared or sent to a provider; provide clear-history and deliberate sharing controls without exposing precise locations by default in newly designed flows. Test storage-disabled, shared-link and delete behavior; review provider terms and local requirements. | C1 + C3/C5; privacy review and migration plan for existing links. |
 | UI-18 | P1 | [Service worker](../apps/web/vite.config.ts) can return a cached plan through `NetworkFirst`; [usePlan](../apps/web/src/hooks/usePlan.ts) treats a successful fetch as network data and saves it with the current time. A cached response may therefore appear newly fetched; exact deployed behavior needs a browser reproduction. | Propagate original response provenance/age across both caches; never refresh observation time on a cached response. Test a controlled network timeout, offline reload and reconnect in a service-worker-enabled browser. | C1 + C5; agree response metadata with C3; UI-01/UI-03. |
 | UI-19 | P2 | [Nearby hook](../apps/web/src/hooks/useNearbyLines.ts) suppresses closest-line lookup errors; [nearby list](../apps/web/src/components/NearbyLines.tsx) presents geometric distance to a corridor and stop, not confirmed walkability or boarding access. | Show fallback failure distinctly, label straight-line distances, and offer alternatives only when data supports them; test out-of-coverage, distant line, failed lookup and map/list use. | C1 + C2 + C3; field validation under UI-05. |
+| UI-20 | P1 | Delhi live positions appear on the map independently of the demo trip planner. The [poller](../apps/server/src/services/delhiRealtime.ts) currently extracts positions and observation times, not route or trip identifiers; markers cannot identify a route or destination. | Verify identifiers and a compatible licensed static feed, match only known trips and directions, support service calendars and scheduled routing, and explain missing or stale data without guessing. Test unmatched IDs, service exceptions and stale positions before presenting buses for a trip. | C2 + C3 + C4; F-26 and UI-14. |
 
 ## Status update, 25 November 2026
 
-Source changes in the working tree after `main@c677fd2` (not yet a reviewed PR). Evidence is
-local only: server/web unit and integration tests and the Playwright suite (mobile and
-desktop profiles). Nothing below has been field-tested or reviewed by commuters.
+Historical update: these changes were subsequently committed on `main@04689f8`. The original
+evidence was local tests and browser fixtures; nothing below has been field-tested or reviewed
+by commuters.
 
 | ID | Status | What changed | Still open |
 | --- | --- | --- | --- |
@@ -49,11 +51,15 @@ New capabilities in the same change: commuters can share the vehicle they ride (
 arrival estimates for stops ahead, occupancy), and the planner scales each route's own wait
 by stand reports and checks service hours when the rider reaches each ride.
 
-Subsequent local integration: the optional Delhi bus position layer is separate from
-crowd and simulated vehicles, but has only been tested with synthetic protobuf data.
-Provider access, actual timestamps, polling limits, attribution and deployed behavior
-remain to be verified. For UI-14, the loader now rejects scheduled trips and unsupported
-frequency windows, but does not yet support calendars or timetable-based routing.
+Subsequent integration: the Delhi bus position layer is separate from crowd and simulated
+vehicles. The deployed API reported a successful poll and its positions appeared in a local
+preview; this does not establish field accuracy or confirm provider terms and polling limits.
+For UI-14, the loader rejects scheduled trips and unsupported frequency windows, but does
+not yet support calendars or timetable-based routing.
+
+The local map now has a bus key and tappable markers showing source and observation age;
+mobile and desktop map tests passed. This UI has not yet been deployed. UI-20 remains open:
+the markers do not identify routes or destinations and are not linked to searched trips.
 
 ## Workflow
 

@@ -45,6 +45,10 @@ Do not promise reduced congestion without a separately designed evaluation.
   millions of stop times. Implement timetable-aware routing and unknown fare states
   rather than inventing headways or free fares; benchmark loading and routing within
   deployment memory limits. Verify permissions and attribution before publication.
+- For real bus trip results (F-26 / UI-20), verify which trip or route identifiers the
+  live feed provides and whether they match an authorized, current static feed. Join only
+  verified matches, respect direction and service dates, and handle missing or stale data
+  explicitly. A bus dot near a trip is not evidence that it serves that trip.
 - Agree identity, moderation, rate limiting, report deduplication, retention and storage
   before opening reporting to the public (UI-06, UI-08). Design for unreliable networks.
 - Invite commuters to suggest missing routes and corrections (UI-10/UI-11), initially

@@ -63,6 +63,12 @@ export default function TransitMap(props: MapViewProps) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [delhiFeedStatus, setDelhiFeedStatus] = useState<'starting' | 'ok' | 'error' | null>(null);
+  const selectedBus = useRef<{
+    id: string;
+    popup: maplibregl.Popup;
+    reported: HTMLElement;
+    timestamp: string;
+  } | null>(null);
   const markers = useRef<Record<'origin' | 'destination' | 'user', maplibregl.Marker | null>>({
     origin: null,
     destination: null,
@@ -165,9 +171,9 @@ export default function TransitMap(props: MapViewProps) {
             ['linear'],
             ['zoom'],
             12,
-            ['case', ['get', 'crowd'], 5, 3.5],
+            ['case', ['get', 'delhiOtd'], 6, ['get', 'crowd'], 5, 3.5],
             16,
-            ['case', ['get', 'crowd'], 9, 7],
+            ['case', ['get', 'delhiOtd'], 10, ['get', 'crowd'], 9, 7],
           ],
           'circle-color': ['get', 'color'],
           'circle-stroke-color': [
@@ -183,6 +189,12 @@ export default function TransitMap(props: MapViewProps) {
       });
 
       map.on('click', 'stands', (e) => {
+        if (
+          map
+            .queryRenderedFeatures(e.point, { layers: ['vehicles'] })
+            .some((feature) => feature.properties.delhiOtd === true)
+        )
+          return;
         const f = e.features?.[0];
         if (!f) return;
         const s = JSON.parse(String(f.properties.json)) as StandStatus;
@@ -193,10 +205,45 @@ export default function TransitMap(props: MapViewProps) {
       });
       map.on('mouseenter', 'stands', () => (map.getCanvas().style.cursor = 'pointer'));
       map.on('mouseleave', 'stands', () => (map.getCanvas().style.cursor = ''));
+      map.on('click', 'vehicles', (e) => {
+        const f = e.features?.find((feature) => feature.properties.delhiOtd === true);
+        if (!f || f.geometry.type !== 'Point') return;
+        const { vehicleId, timestamp } = f.properties;
+        if (typeof vehicleId !== 'string' || typeof timestamp !== 'string') return;
+        selectedBus.current?.popup.remove();
+        const root = document.createElement('div');
+        root.className = 'space-y-1 pr-3 text-sm text-slate-800';
+        const title = document.createElement('p');
+        title.className = 'font-semibold';
+        title.textContent = 'Delhi bus';
+        const reported = document.createElement('p');
+        reported.textContent = `Position reported ${formatRelativeTime(timestamp)}`;
+        const details = document.createElement('p');
+        details.textContent = 'Route number and destination are not available.';
+        const source = document.createElement('p');
+        source.className = 'text-xs text-slate-500';
+        source.textContent = 'Source: Delhi Open Transit Data';
+        root.append(title, reported, details, source);
+        const popup = new maplibregl.Popup({ offset: 12 })
+          .setLngLat(f.geometry.coordinates as LngLat)
+          .setDOMContent(root)
+          .addTo(map);
+        selectedBus.current = { id: vehicleId, popup, reported, timestamp };
+        popup.on('close', () => {
+          if (selectedBus.current?.popup === popup) selectedBus.current = null;
+        });
+      });
+      map.on('mousemove', 'vehicles', (e) => {
+        map.getCanvas().style.cursor = e.features?.some((f) => f.properties.delhiOtd === true)
+          ? 'pointer'
+          : '';
+      });
+      map.on('mouseleave', 'vehicles', () => (map.getCanvas().style.cursor = ''));
       setReady(true);
     });
 
     return () => {
+      selectedBus.current?.popup.remove();
       map.remove();
       mapRef.current = null;
     };
@@ -317,13 +364,17 @@ export default function TransitMap(props: MapViewProps) {
     const offRemoved = live.onVehicleRemoved((id) => animator.remove(id));
     const offSource = live.onVehicleSourceStatus(({ status }) => {
       setDelhiFeedStatus(status);
-      if (status === 'error') animator.removeSource('delhi-otd');
+      if (status === 'error') {
+        animator.removeSource('delhi-otd');
+        selectedBus.current?.popup.remove();
+      }
     });
     const offOpen = live.onOpenChange((open) => {
       if (open) sendBbox();
       else {
         setDelhiFeedStatus((status) => (status === null ? null : 'error'));
         animator.removeSource('delhi-otd');
+        selectedBus.current?.popup.remove();
       }
     });
     map.on('moveend', sendBbox);
@@ -332,6 +383,16 @@ export default function TransitMap(props: MapViewProps) {
     const timer = setInterval(
       () => {
         const frame = animator.frame(performance.now(), !reduceMotion);
+        const selected = selectedBus.current;
+        if (selected) {
+          const bus = frame.find(({ vehicle }) => vehicle.vehicleId === selected.id);
+          if (!bus) selected.popup.remove();
+          else {
+            selected.popup.setLngLat(bus.at);
+            selected.timestamp = bus.vehicle.timestamp;
+            selected.reported.textContent = `Position reported ${formatRelativeTime(selected.timestamp)}`;
+          }
+        }
         (map.getSource('vehicles') as GeoJSONSource | undefined)?.setData({
           type: 'FeatureCollection',
           features: frame.map(({ vehicle, at }) => ({
@@ -343,6 +404,8 @@ export default function TransitMap(props: MapViewProps) {
                   : (colors.get(vehicle.routeId ?? '') ?? '#334155'),
               crowd: vehicle.source === 'crowd',
               delhiOtd: vehicle.source === 'delhi-otd',
+              vehicleId: vehicle.vehicleId,
+              timestamp: vehicle.timestamp,
             },
             geometry: { type: 'Point', coordinates: at },
           })),
@@ -466,17 +529,30 @@ export default function TransitMap(props: MapViewProps) {
         </p>
       )}
       {delhiFeedStatus && (
-        <p
+        <div
           role="status"
-          className="absolute right-3 top-16 rounded-lg bg-white/95 px-2 py-1 text-xs text-slate-800 shadow"
+          className="absolute right-3 top-16 max-w-64 rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-800 shadow"
         >
-          {delhiFeedStatus === 'starting'
-            ? 'Loading Delhi bus positions'
-            : delhiFeedStatus === 'error'
-              ? 'Delhi bus positions unavailable'
-              : 'Blue dots with amber outline: recent Delhi buses'}
-          {' · '}Source: Delhi Open Transit Data
-        </p>
+          {delhiFeedStatus === 'ok' ? (
+            <>
+              <p className="flex items-center gap-2 font-semibold">
+                <span
+                  aria-hidden="true"
+                  className="size-4 shrink-0 rounded-full border-[3px] border-amber-500 bg-blue-600"
+                />
+                Delhi bus position
+              </p>
+              <p className="mt-1">Tap a blue and amber dot for details.</p>
+            </>
+          ) : (
+            <p>
+              {delhiFeedStatus === 'starting'
+                ? 'Loading Delhi bus positions'
+                : 'Delhi bus positions unavailable'}
+            </p>
+          )}
+          <p className="mt-1 text-slate-500">Source: Delhi Open Transit Data</p>
+        </div>
       )}
     </section>
   );

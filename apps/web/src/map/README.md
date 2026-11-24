@@ -11,6 +11,9 @@ Owner: **Contributor 2**. MapLibre GL JS with OpenFreeMap vector tiles (no API k
 
 - **Live data**: subscribes the map viewport over `/api/v1/live` (zoom ≥ 12) via `lib/live.ts`,
   re-subscribing on every pan/zoom and reconnect. Initial stands come from `GET /api/v1/stands`.
+  Delhi buses use blue markers with amber outlines and a map key. Tap a marker to see its
+  observation age and source; route numbers and destinations are not currently provided.
+  The popup closes if the bus position expires or the feed becomes unavailable.
 - **Performance**: the map chunk (~300 KB gz) loads after the planner UI. Vehicle layer updates at
   10 fps, 1 fps with `prefers-reduced-motion`.
 - **Offline**: tiles/style/fonts are cached by the service worker (cache-first, 14 days), so

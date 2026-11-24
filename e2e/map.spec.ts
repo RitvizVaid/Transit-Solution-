@@ -92,7 +92,7 @@ test.describe('map (C2)', () => {
 
   test('shows Delhi bus positions separately and preserves rider vehicles on feed failure', async ({
     isolated: page,
-  }) => {
+  }, testInfo) => {
     let failFeed = () => {
       throw new Error('WebSocket not connected');
     };
@@ -124,7 +124,7 @@ test.describe('map (C2)', () => {
                 vehicleId,
                 source,
                 mode: 'BUS',
-                coordinates: [77.2296, 28.6662],
+                coordinates: source === 'delhi-otd' ? [77.237, 28.661] : [77.2296, 28.6662],
                 timestamp: new Date().toISOString(),
               },
             }),
@@ -134,12 +134,45 @@ test.describe('map (C2)', () => {
     });
     await page.goto(planUrl(KG_METRO, undefined, '&debug=map'));
     await waitForMap(page);
-    await expect(
-      page.getByText('Blue dots with amber outline: recent Delhi buses', { exact: false }),
-    ).toBeVisible();
+    await expect(page.getByText('Delhi bus position', { exact: true })).toBeVisible();
+    await expect(page.getByText('Tap a blue and amber dot for details.')).toBeVisible();
     await expect.poll(async () => (await sourceFeatures(page, 'vehicles')).length).toBe(2);
+    const point = await page.evaluate(async () => {
+      const m = (
+        window as unknown as {
+          __transitMap: {
+            jumpTo(o: object): void;
+            once(e: string, cb: () => void): void;
+            project(ll: [number, number]): { x: number; y: number };
+            getCanvas(): HTMLCanvasElement;
+          };
+        }
+      ).__transitMap;
+      m.jumpTo({
+        center: [77.237, 28.661],
+        zoom: 16,
+        padding: {
+          top: 0,
+          right: 0,
+          bottom: window.innerWidth < 768 ? window.innerHeight * 0.45 : 0,
+          left: 0,
+        },
+      });
+      await new Promise<void>((r) => m.once('idle', r));
+      const p = m.project([77.237, 28.661]);
+      const box = m.getCanvas().getBoundingClientRect();
+      return { x: box.left + p.x, y: box.top + p.y };
+    });
+    if (testInfo.project.name === 'mobile') await page.touchscreen.tap(point.x, point.y);
+    else await page.mouse.click(point.x, point.y);
+    const popup = page.locator('.maplibregl-popup');
+    await expect(popup).toContainText('Delhi bus');
+    await expect(popup).toContainText('Position reported');
+    await expect(popup).toContainText('Route number and destination are not available.');
+    await expect(popup).toContainText('Source: Delhi Open Transit Data');
     failFeed();
     await expect(page.getByText('Delhi bus positions unavailable', { exact: false })).toBeVisible();
+    await expect(popup).toHaveCount(0);
     await expect.poll(async () => (await sourceFeatures(page, 'vehicles')).length).toBe(1);
     expect((await sourceFeatures(page, 'vehicles'))[0]?.properties.crowd).toBe(true);
   });
