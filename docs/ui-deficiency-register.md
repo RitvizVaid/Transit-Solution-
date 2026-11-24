@@ -28,6 +28,27 @@ or field audit. All items are **open**; priorities are proposed, not team commit
 | UI-18 | P1 | [Service worker](../apps/web/vite.config.ts) can return a cached plan through `NetworkFirst`; [usePlan](../apps/web/src/hooks/usePlan.ts) treats a successful fetch as network data and saves it with the current time. A cached response may therefore appear newly fetched; exact deployed behavior needs a browser reproduction. | Propagate original response provenance/age across both caches; never refresh observation time on a cached response. Test a controlled network timeout, offline reload and reconnect in a service-worker-enabled browser. | C1 + C5; agree response metadata with C3; UI-01/UI-03. |
 | UI-19 | P2 | [Nearby hook](../apps/web/src/hooks/useNearbyLines.ts) suppresses closest-line lookup errors; [nearby list](../apps/web/src/components/NearbyLines.tsx) presents geometric distance to a corridor and stop, not confirmed walkability or boarding access. | Show fallback failure distinctly, label straight-line distances, and offer alternatives only when data supports them; test out-of-coverage, distant line, failed lookup and map/list use. | C1 + C2 + C3; field validation under UI-05. |
 
+## Status update, 25 November 2026
+
+Source changes in the working tree after `main@c677fd2` (not yet a reviewed PR). Evidence is
+local only: server/web unit and integration tests and the Playwright suite (mobile and
+desktop profiles). Nothing below has been field-tested or reviewed by commuters.
+
+| ID | Status | What changed | Still open |
+| --- | --- | --- | --- |
+| UI-01 | Addressed in source | `StandStatus.source` (`baseline`/`reported`), `expiresAt`, `lastReportedAt`; no vehicle count without a report; badge shows the headway plus "no stand report yet" for baseline; grey map stands; expiry pushed to open apps. | Wording review with commuters. |
+| UI-04 | Partly | Hindi toggle for the commuter planning flow (`lib/i18n.ts`), `lang` set on the page. | Native-speaker review of the draft Hindi; nearby list details and install hint for iOS still English; no accessibility audit. |
+| UI-06 / UI-11 | Partly | Per-stand tokens and SQLite deduplication (earlier commit); per-stand and per-IP rate limits; simulated reports can no longer mix with real ones. | Moderation, correction/removal, retention policy, reporter identity beyond a shared stand code. |
+| UI-09 | Addressed in source | `PlanResponse.noRouteReason` (no stops near start / destination, outside service hours, no connection) with specific copy that never claims no service exists. | Network/cache variants of the empty state (UI-18). |
+| UI-10 | Partly | Empty results offer a route-suggestion form; suggestions are stored for review (coordinates rounded to ~110 m) and never used for planning; reviewers list them with `ADMIN_TOKEN`. | Accept/reject workflow, operator verification, turning accepted suggestions into GTFS. |
+| UI-12 | Partly | Baseline has no vehicle count; "departing now" no longer decrements an unknown count. | "Stand empty" still implies at least one waiting vehicle. |
+| UI-15 | Addressed in source | Search only offers results for the current query (`geocodeView`, unit-tested). | Browser reproduction of the original timing issue. |
+| UI-16 | Partly | All city-specific web values in `apps/web/src/city.ts`, selected with `VITE_CITY`. | Only Delhi is defined; no tier-2/3 city data yet. |
+
+New capabilities in the same change: commuters can share the vehicle they ride (live map,
+arrival estimates for stops ahead, occupancy), and the planner scales each route's own wait
+by stand reports and checks service hours when the rider reaches each ride.
+
 ## Workflow
 
 Pick one bounded ID, inspect the linked code and related feature, agree on behavior and

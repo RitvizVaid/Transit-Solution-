@@ -18,6 +18,9 @@ Changing a type in `shared-types` needs a review from each contributor who consu
 | POST   | `/api/v1/telemetry/reports`  | authenticated report; 202 accepted, 200 duplicate |
 | POST   | `/api/v1/rides/positions`    | rider shares their vehicle's position; `RidePositionResponse` |
 | POST   | `/api/v1/rides/end`          | rider stops sharing; 204             |
+| GET    | `/api/v1/arrivals`           | `ArrivalsResponse`: shared vehicles heading to a stop |
+| POST   | `/api/v1/suggestions`        | commuter route suggestion; 202, held for review |
+| GET    | `/api/v1/suggestions`        | pending suggestions; reviewer bearer token |
 | WS     | `/api/v1/live`               | `ServerMessage` stream                 |
 
 ## GET /api/v1/plan
@@ -37,7 +40,10 @@ GET /api/v1/plan?fromLat=28.6675&fromLng=77.2282&toLat=28.6555&toLng=77.23&fromN
 Up to 3 itineraries, fastest expected time first, at most one transfer.
 `x-planner: otp | builtin` says which engine answered.
 
-- `Itinerary.durationSeconds` = walking + **expected waits** + riding. Waits are not legs:
+- `Itinerary.durationSeconds` = walking + **expected waits** + riding. Each ride's wait is
+  half its route's headway; a stand report still in effect scales that by how the stand
+  compares with its baseline (e.g. a full stand doubles each route's own wait). A route is
+  only offered if it is still running when the rider reaches it. Waits are not legs:
   `duration − walkTime − transitTime` is the total expected wait.
 - `Itinerary.estimatedFare`: sum of separate tickets per ride (informal modes don't share fares).
 - `Itinerary.congestionLevel`: `low | moderate | high` from expected wait and the boarding stand's queue.
@@ -45,14 +51,25 @@ Up to 3 itineraries, fastest expected time first, at most one transfer.
 - `Leg.frequencyMinutes`: `{ min, max }` headway range.
 - `Leg.routeId`: network route id on ride legs (absent for walks and unknown OTP routes);
   use it to share a ride on that route.
+- `Leg.fromStopId`, `Leg.toStopId`: network stops where the ride boards and gets off (they fix
+  the direction); use them with `GET /arrivals`.
 - `Leg.boardingStandId`: set when the leg boards at a marshalled stand → poll it or subscribe live.
 - `Leg.geometryPolyline`: Google encoded polyline, precision 5. Rides follow the route shape;
   walks are straight lines (built-in planner) or street paths (OTP).
 
 Errors: **400** for missing/out-of-range coordinates or an unparseable `departAt`.
 An empty `itineraries` array means the configured planner found no itinerary for the
-request. It does not establish that no real-world service exists. The response does
-not currently distinguish limited coverage, service hours or other search constraints.
+request. It does not establish that no real-world service exists. It then carries
+`noRouteReason`, the most specific explanation the data supports:
+
+| `noRouteReason` | Meaning |
+| --- | --- |
+| `no_stops_near_origin` | no known stop within walking distance (800 m) of the start |
+| `no_stops_near_destination` | none near the destination |
+| `outside_service_hours` | stops near both ends, but none of their routes run now |
+| `no_connection` | routes run near both ends, but no connection was found |
+
+**429** with `Retry-After` when one client IP sends more than 120 plans a minute.
 
 ## Network
 
@@ -65,13 +82,22 @@ serviceHours. Changes only with a new feed; clients may cache.
 
 ## Stands
 
-`StandStatus`: `standId`, `name`, `coordinates` (`[lng, lat]`), `availableVehiclesEstimate`,
-`passengerQueueLevel` (`empty | normal | crowded | severe`), `averageWaitMinutes`,
-`lastUpdated` (time of the last report, or of feed load if none).
+`StandStatus`: `standId`, `name`, `coordinates` (`[lng, lat]`), `source`,
+`availableVehiclesEstimate`, `passengerQueueLevel` (`empty | normal | crowded | severe`),
+`averageWaitMinutes`, `lastReportedAt`, `expiresAt`, `lastUpdated`.
 
-Without reports a stand shows its schedule baseline (wait ≈ half the shortest mean headway).
-Reports older than 30 minutes revert to that baseline; `lastUpdated` stays the real report
-time so clients can show "last report 40 min ago".
+- `source: "baseline"`: no report in effect. Values are the schedule estimate (wait ≈ half the
+  shortest mean headway), nobody observed them: `availableVehiclesEstimate` and `expiresAt`
+  are `null`. Clients must not present these as live.
+- `source: "reported"`: shaped by a marshal report within the last 30 minutes
+  (`STAND_REPORT_TTL_MS`); `expiresAt` says when it reverts. `availableVehiclesEstimate` is
+  only a number when the reports give a basis for one (e.g. after "stand empty").
+- `lastReportedAt` is the last accepted report even after it expired (so clients can say
+  "last report 40 min ago"); `null` if the stand never had one. `lastUpdated` is kept for
+  older clients (last report, or feed load time).
+
+When a report expires the server pushes the reverted `stand.status` to live subscribers
+(within ~2 s), so open apps do not keep showing it.
 
 ## POST /api/v1/telemetry/reports
 
@@ -96,7 +122,8 @@ than 30 minutes return **410**; out-of-order reports and a reused ID with differ
 return **409**. Repeating an identical report ID and payload returns **200** without applying
 the report twice. A new accepted report returns **202** with the updated stand. Invalid body
 returns **400**, invalid/missing token **401**, and a token for another stand **403**.
-Reporting with no configured tokens returns **503**.
+Reporting with no configured tokens returns **503**. More than 30 reports a minute for one
+stand returns **429**; `/telemetry/session` allows 20 attempts a minute per IP.
 
 ## Crowd-shared rides
 
@@ -107,6 +134,10 @@ where the vehicle is. No account is needed. The phone sends a fix about every 5 
 POST /api/v1/rides/positions
 { "rideId": "random-id-made-on-the-phone", "routeId": "KG-1", "coordinates": [77.2302, 28.66], "accuracyM": 12, "recordedAt": "2026-12-01T10:00:00+05:30" }
 ```
+
+`occupancy` is optional: `seats_available | standing_only | full`, the rider's answer to "how
+full is it?". It sticks to the ride until changed and is shown with the vehicle and its
+arrival estimates.
 
 `rideId` (16–64 chars, `[A-Za-z0-9-]`) is generated on the phone for one ride and is the
 only thing that lets a phone move its vehicle. It is never broadcast: the public
@@ -131,7 +162,39 @@ the vehicle is on its corridor, not the rider's exact GPS point. Rides are held 
 only and disappear after 60 s without an accepted fix. `POST /api/v1/rides/end`
 `{ "rideId": "…" }` removes the vehicle at once (**204**, also for unknown ids).
 While at least one rider is sharing a route, simulated vehicles for that route are hidden.
-Invalid bodies return **400**; unknown fields are stripped, not stored.
+Invalid bodies return **400**; unknown fields are stripped, not stored. **429** above 240
+requests a minute from one IP (generous: many phones share a carrier IP).
+
+### GET /api/v1/arrivals?stopId=&routeId=&towardsStopId=
+
+Shared vehicles heading to `stopId`, soonest first. `routeId` limits it to one route;
+`towardsStopId` (the leg's `toStopId`) keeps only vehicles going that way, since vehicles in
+the other direction pass the same stop. **404** for an unknown stop.
+
+```json
+{ "stopId": "gpo", "arrivals": [ { "routeId": "KG-1", "vehicleId": "crowd-…", "etaSeconds": { "min": 140, "max": 300 }, "distanceMeters": 610, "occupancy": "full", "observedAt": "…" } ] }
+```
+
+The ETA is the timetable running time from the vehicle's point on the route to the stop,
+minus the time since its last fix, widened to a range (×0.8 … ×1.4 + 60 s). Only crowd
+vehicles count, never simulated ones; estimates beyond 30 minutes are left out. An empty
+list means nobody on an approaching vehicle is sharing, not that none is coming.
+
+## Route suggestions
+
+`POST /api/v1/suggestions` (from the app's empty-result screen):
+
+```json
+{ "from": { "name": "Seelampur", "lat": 28.6704, "lng": 77.2689 }, "to": { "name": "ISBT", "lat": 28.668, "lng": 77.228 }, "mode": "E_RICKSHAW", "routeName": "Seelampur - ISBT", "fareInr": 20, "note": "from the metro gate" }
+```
+
+Only `from` and `to` are required. Returns **202** `{ "id", "status": "pending" }`.
+Coordinates are rounded to 3 decimals (~110 m) before saving; nothing identifies the sender.
+Suggestions are **never used for planning or shown to others** until a reviewer has checked
+them with operators. 10 a minute per IP.
+
+`GET /api/v1/suggestions` with `Authorization: Bearer <ADMIN_TOKEN>` lists pending ones
+(**401** wrong token, **503** if `ADMIN_TOKEN` is not configured).
 
 ## WebSocket /api/v1/live
 

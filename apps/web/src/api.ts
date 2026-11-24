@@ -1,10 +1,12 @@
 import type {
+  ArrivalsResponse,
   NearbyStopsResponse,
   NearestLineResponse,
   PlanRequest,
   PlanResponse,
   RidePosition,
   RidePositionResponse,
+  RouteSuggestionInput,
   StandStatus,
   TransitRoute,
 } from '@transit/shared-types';
@@ -48,6 +50,11 @@ export const fetchNearbyStops = (
   signal?: AbortSignal,
 ) => getJson<NearbyStopsResponse>(`/api/v1/stops/nearby?${toQuery(q)}`, signal);
 
+export const fetchArrivals = (
+  q: { stopId: string; routeId?: string; towardsStopId?: string },
+  signal?: AbortSignal,
+) => getJson<ArrivalsResponse>(`/api/v1/arrivals?${toQuery(q)}`, signal);
+
 export const fetchNearestLine = (q: { lat: number; lng: number }, signal?: AbortSignal) =>
   getJson<NearestLineResponse>(`/api/v1/routes/nearest?${toQuery(q)}`, signal);
 
@@ -80,4 +87,15 @@ export async function endRide(rideId: string): Promise<void> {
     keepalive: true,
   });
   if (!res.ok) throw new ApiError(res.status, '/api/v1/rides/end');
+}
+
+/** A commuter suggests a route the app does not know. Held for review on the server. */
+export async function postSuggestion(s: RouteSuggestionInput): Promise<{ id: string }> {
+  const res = await fetch(`${config.apiBase}/api/v1/suggestions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(s),
+  });
+  if (!res.ok) throw new ApiError(res.status, '/api/v1/suggestions');
+  return (await res.json()) as { id: string };
 }

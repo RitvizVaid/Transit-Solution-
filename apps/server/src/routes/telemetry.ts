@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { REPORT_KINDS, type StandReport } from '@transit/shared-types';
 import type { FastifyPluginAsync } from 'fastify';
+import { limitByIp, tooMany } from '../services/rateLimit.js';
 
 export const telemetryRoutes: FastifyPluginAsync = async (app) => {
   const credentials = Object.entries(app.transit.config.reportTokenHashes).map(
@@ -21,6 +22,7 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
   app.post<{ Reply: { standId: string } | { error: string } }>(
     '/telemetry/session',
     {
+      onRequest: limitByIp(() => app.transit.limits?.session),
       schema: {
         tags: ['live'],
         summary: 'Verify a stand-specific reporting token',
@@ -66,6 +68,9 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
       if (!authorized) return reply.code(401).send({ error: 'invalid_report_token' });
       if (authorized !== req.body.standId)
         return reply.code(403).send({ error: 'report_stand_forbidden' });
+      // One stand's code cannot flood the live map (a marshal reports a few times a minute).
+      const perStand = app.transit.limits?.reportsPerStand;
+      if (perStand && !perStand.hit(authorized)) return tooMany(reply, perStand);
       if (!stands.has(req.body.standId)) return reply.code(404).send({ error: 'stand_not_found' });
 
       const receivedAt = now();

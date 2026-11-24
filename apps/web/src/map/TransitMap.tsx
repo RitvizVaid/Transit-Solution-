@@ -13,6 +13,7 @@ import { live } from '../lib/live';
 import { boundsOf, circlePolygon, itineraryToGeoJSON, type LngLat } from './geometry';
 import type { MapViewProps } from './MapView';
 import { VehicleAnimator } from './vehicleAnimator';
+import { isLiveReport } from '../lib/standFreshness';
 
 maplibregl.setWorkerUrl(workerUrl);
 
@@ -36,10 +37,19 @@ function standPopup(s: StandStatus): HTMLElement {
   title.className = 'font-semibold';
   title.textContent = s.name;
   const body = document.createElement('p');
-  body.textContent = `~${s.averageWaitMinutes} min wait · ${s.availableVehiclesEstimate} waiting · ${QUEUE_META[s.passengerQueueLevel].label.toLowerCase()}`;
   const when = document.createElement('p');
   when.className = 'text-xs text-slate-500';
-  when.textContent = `Updated ${formatRelativeTime(s.lastUpdated)}`;
+  if (isLiveReport(s, Date.now())) {
+    const count =
+      s.availableVehiclesEstimate === null ? '' : ` · ${s.availableVehiclesEstimate} waiting`;
+    body.textContent = `~${s.averageWaitMinutes} min wait${count} · ${QUEUE_META[s.passengerQueueLevel].label.toLowerCase()}`;
+    when.textContent = `Reported ${formatRelativeTime(s.lastReportedAt!)}`;
+  } else {
+    body.textContent = `Typical wait ~${s.averageWaitMinutes} min (from the schedule)`;
+    when.textContent = s.lastReportedAt
+      ? `Last report ${formatRelativeTime(s.lastReportedAt)}`
+      : 'No reports from this stand yet';
+  }
   root.append(title, body, when);
   return root;
 }
@@ -265,7 +275,11 @@ export default function TransitMap(props: MapViewProps) {
         type: 'FeatureCollection',
         features: [...stands.values()].map((s) => ({
           type: 'Feature',
-          properties: { color: QUEUE_COLORS[s.passengerQueueLevel], json: JSON.stringify(s) },
+          properties: {
+            // Grey until a report is in effect: colour means someone observed the queue.
+            color: isLiveReport(s, Date.now()) ? QUEUE_COLORS[s.passengerQueueLevel] : '#94a3b8',
+            json: JSON.stringify(s),
+          },
           geometry: { type: 'Point', coordinates: s.coordinates },
         })),
       });

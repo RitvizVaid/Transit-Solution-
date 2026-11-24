@@ -14,8 +14,12 @@ WebSocket) to the API container, so everything is same-origin. Put a TLS-termina
 (Caddy, Traefik, a cloud load balancer) in front of ports 8080 / 8081. **HTTPS is required**
 for geolocation, service workers and "Add to Home Screen".
 
-`SIMULATE=false` disables generated reports and vehicle positions, but stand status still
-starts with schedule-based estimates and default counts. The pilot reporter flow requires
+`SIMULATE=false` disables generated reports and vehicle positions. Stands without a recent
+report are served as `source: "baseline"` (schedule estimate, no vehicle count) and the apps
+label them that way. When `REPORT_TOKENS_JSON` is set, simulated reports are switched off
+automatically (an explicit `SIMULATE_REPORTS=true` with tokens refuses to start), so real
+reports are never mixed with synthetic ones; simulated vehicles may stay on for a demo and
+are hidden on any route where a commuter is sharing a real ride. The pilot reporter flow requires
 per-stand tokens and SQLite persistence; configure both before collecting field reports.
 This is a single-API-instance design; do not scale the API horizontally with local SQLite.
 
@@ -29,6 +33,9 @@ This is a single-API-instance design; do not scale the API horizontally with loc
 
 Static hosts need:
 
+- `VITE_CITY` (default `delhi`): which entry of `apps/web/src/city.ts` to build for (search
+  area, map centre, header label). Pair it with the API's `GTFS_DIR`; an unknown id fails the
+  build.
 - `VITE_API_BASE=https://api.your-domain` at build time (the apps then call the API and
   `wss://…/api/v1/live` directly).
 - An SPA fallback to `index.html` (Vercel/Netlify/Pages do this for single-page apps;
@@ -43,6 +50,9 @@ The API needs:
 | `SIMULATE`            | `false` for a real pilot                                     |
 | `REPORT_TOKENS_JSON`  | server-side JSON mapping each stand ID to a distinct random token (≥32 bytes) |
 | `REPORT_DB_PATH`      | durable writable SQLite file; back up this data              |
+| `ADMIN_TOKEN`         | optional, ≥32 bytes: lets reviewers read route suggestions    |
+| `TRUST_PROXY`         | default `true` (client IP from `X-Forwarded-For`, needed behind nginx / Render for per-IP limits); set `false` if the API is exposed directly |
+| `RATE_LIMIT`          | default on; `off` only for local end-to-end tests             |
 | `OTP_URL`             | optional, see below                                           |
 | `GTFS_DIR`            | already set in the image; rebuild after `pnpm data:build`    |
 
@@ -60,6 +70,7 @@ database directory and run a single API instance.
 
 The platform must support WebSockets (all of the above do). Stand state is in memory:
 run **one** API instance until `StandStore` is backed by Redis (see `apps/server/README.md`).
+Shared rides and rate-limit counters are in memory too.
 
 ## OpenTripPlanner (optional)
 

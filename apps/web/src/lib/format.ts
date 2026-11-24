@@ -3,18 +3,20 @@ import type {
   FrequencyRange,
   LegMode,
   Money,
+  Occupancy,
   PassengerQueueLevel,
 } from '@transit/shared-types';
+import { t } from './i18n';
 
 /** Non-breaking space: keeps "1.1 km" / "10 min" on one line. */
 const NBSP = ' ';
 
 export function formatDuration(seconds: number): string {
   const totalMin = Math.max(1, Math.round(seconds / 60));
-  if (totalMin < 60) return `${totalMin}${NBSP}min`;
+  if (totalMin < 60) return t(`{n}${NBSP}min`, { n: totalMin });
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  return m ? `${h}${NBSP}h ${m}${NBSP}min` : `${h}${NBSP}h`;
+  return m ? t(`{h}${NBSP}h {m}${NBSP}min`, { h, m }) : t(`{h}${NBSP}h`, { h });
 }
 
 export function formatDistance(meters: number): string {
@@ -33,7 +35,7 @@ export function formatFare({ currency, amount }: Money): string {
 }
 
 export function formatFrequency({ min, max }: FrequencyRange): string {
-  return min === max ? `every ${min} min` : `every ${min}–${max} min`;
+  return min === max ? t('every {n} min', { n: min }) : t('every {min}–{max} min', { min, max });
 }
 
 export function formatClock(date: Date): string {
@@ -43,36 +45,67 @@ export function formatClock(date: Date): string {
 export function formatRelativeTime(iso: string, now = Date.now()): string {
   const diffSec = Math.round((now - Date.parse(iso)) / 1000);
   if (!Number.isFinite(diffSec)) return '';
-  if (diffSec < 60) return 'just now';
+  if (diffSec < 60) return t('just now');
   const min = Math.round(diffSec / 60);
-  if (min < 60) return `${min} min ago`;
+  if (min < 60) return t('{n} min ago', { n: min });
   const h = Math.round(min / 60);
-  if (h < 24) return `${h} h ago`;
-  return `${Math.round(h / 24)} d ago`;
+  if (h < 24) return t('{n} h ago', { n: h });
+  return t('{n} d ago', { n: Math.round(h / 24) });
 }
 
+/** "3–6 min", "1–2 min", "under 1 min": an arrival range in whole minutes. */
+export function formatEta(eta: { min: number; max: number }): string {
+  if (eta.max < 60) return t('under 1 min');
+  const lo = Math.max(0, Math.floor(eta.min / 60));
+  const hi = Math.max(lo + 1, Math.ceil(eta.max / 60));
+  return lo === 0 ? t('within {n} min', { n: hi }) : t('{min}–{max} min', { min: lo, max: hi });
+}
+
+/** `label` is read in the current language each time (see lib/i18n). */
+const level = (label: string, tone: Tone) => ({
+  get label() {
+    return t(label);
+  },
+  tone,
+});
+
+export const OCCUPANCY_META: Record<Occupancy, { label: string; tone: Tone }> = {
+  seats_available: level('Seats free', 'good'),
+  standing_only: level('Standing only', 'warn'),
+  full: level('Full', 'bad'),
+};
+
+const mode = (label: string, vehicles: string) => ({
+  get label() {
+    return t(label);
+  },
+  get vehicles() {
+    return vehicles && t(vehicles);
+  },
+});
+
 export const MODE_META: Record<LegMode, { label: string; vehicles: string }> = {
-  WALK: { label: 'Walk', vehicles: '' },
-  AUTO_RICKSHAW: { label: 'Shared auto', vehicles: 'autos' },
-  E_RICKSHAW: { label: 'E-rickshaw', vehicles: 'e-rickshaws' },
-  SHARED_TAXI: { label: 'Shared taxi', vehicles: 'taxis' },
-  MINIBUS: { label: 'Minibus', vehicles: 'minibuses' },
-  BUS: { label: 'Bus', vehicles: 'buses' },
+  WALK: mode('Walk', ''),
+  AUTO_RICKSHAW: mode('Shared auto', 'autos'),
+  E_RICKSHAW: mode('E-rickshaw', 'e-rickshaws'),
+  SHARED_TAXI: mode('Shared taxi', 'taxis'),
+  MINIBUS: mode('Minibus', 'minibuses'),
+  BUS: mode('Bus', 'buses'),
 };
 
 export type Tone = 'good' | 'warn' | 'bad' | 'neutral';
 
 export const CONGESTION_META: Record<CongestionLevel, { label: string; tone: Tone }> = {
-  low: { label: 'Short wait', tone: 'good' },
-  moderate: { label: 'Moderate wait', tone: 'warn' },
-  high: { label: 'Long wait', tone: 'bad' },
+  low: level('Short wait', 'good'),
+  moderate: level('Moderate wait', 'warn'),
+  high: level('Long wait', 'bad'),
 };
 
 export const QUEUE_META: Record<PassengerQueueLevel, { label: string; tone: Tone }> = {
-  empty: { label: 'No queue', tone: 'good' },
-  normal: { label: 'Normal queue', tone: 'good' },
-  crowded: { label: 'Crowded', tone: 'warn' },
-  severe: { label: 'Very crowded', tone: 'bad' },
+  empty: level('No queue', 'good'),
+  normal: level('Normal queue', 'good'),
+  crowded: level('Crowded', 'warn'),
+  severe: level('Very crowded', 'bad'),
 };
 
 export const TONE_CLASSES: Record<Tone, string> = {

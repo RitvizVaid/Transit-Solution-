@@ -1,3 +1,11 @@
+# LF everywhere, on every OS (matches .editorconfig and Prettier). Without this, Windows
+# checkouts with core.autocrlf=true get CRLF files that fail `pnpm format:check`.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.jpg binary
+*.woff2 binary
+
 # Generated GTFS is compared byte-for-byte in CI; keep LF everywhere.
 data/gtfs/** text eol=lf
 data/geojson/** text eol=lf

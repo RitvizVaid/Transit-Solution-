@@ -13,7 +13,7 @@ export interface GeocodeState {
   results: Place[];
 }
 
-interface Answer {
+export interface Answer {
   query: string;
   status: 'ok' | 'error';
   results: Place[];
@@ -47,8 +47,16 @@ export function useGeocode(query: string, enabled: boolean): GeocodeState {
     return () => ctrl.abort();
   }, [debounced, active]);
 
-  if (!enabled || trimmed.length < MIN_QUERY_LENGTH) return { status: 'idle', results: [] };
-  // Still typing, or waiting for this query's answer: keep showing the previous results.
-  if (answer?.query !== trimmed) return { status: 'loading', results: answer?.results ?? [] };
-  return answer;
+  return geocodeView(trimmed, enabled, answer);
+}
+
+/**
+ * What the search box may show for `query`. Results are only ever those of the current
+ * query: showing (and letting Enter pick) the previous query's results while the new one
+ * loads could select the wrong place.
+ */
+export function geocodeView(query: string, enabled: boolean, answer: Answer | null): GeocodeState {
+  if (!enabled || query.length < MIN_QUERY_LENGTH) return { status: 'idle', results: [] };
+  if (answer?.query !== query) return { status: 'loading', results: [] };
+  return { status: answer.status, results: answer.results };
 }

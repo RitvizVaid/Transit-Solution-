@@ -170,4 +170,25 @@ describe('RideShare', () => {
     await flush();
     expect(t.share.getState()).toMatchObject({ status: 'stopped', accepted: 0 });
   });
+
+  it('sends how full the vehicle is, and resends the last fix when only that changes', async () => {
+    const t = setup();
+    t.share.start(TARGET);
+    t.fix();
+    await flush();
+    expect(t.send.mock.calls[0]![0].occupancy).toBeUndefined();
+    // Stuck in traffic: no new GPS fix, but the rider says it is full now.
+    t.share.setOccupancy('full');
+    await flush();
+    expect(t.send).toHaveBeenCalledTimes(2);
+    expect(t.send.mock.calls[1]![0]).toMatchObject({
+      occupancy: 'full',
+      coordinates: [77.23, 28.66],
+    });
+    expect(t.share.getState()).toMatchObject({ occupancy: 'full' });
+    // The answer sticks for later fixes.
+    t.fix(28.661);
+    await t.tick();
+    expect(t.send.mock.calls[2]![0].occupancy).toBe('full');
+  });
 });

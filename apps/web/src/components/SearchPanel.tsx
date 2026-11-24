@@ -1,6 +1,7 @@
 import type { Place } from '../types';
 import { LocateIcon, SwapIcon } from './icons';
 import { LocationInput } from './LocationInput';
+import { t } from '../lib/i18n';
 
 interface Props {
   from: Place | null;
@@ -30,8 +31,8 @@ export function SearchPanel({
       <div className="flex items-stretch gap-2">
         <div className="min-w-0 flex-1 space-y-2">
           <LocationInput
-            label="From"
-            placeholder={locating ? 'Finding your location…' : 'Where from?'}
+            label={t('From')}
+            placeholder={locating ? t('Finding your location…') : t('Where from?')}
             value={from}
             onSelect={onFromChange}
             onFocus={onInputFocus}
@@ -43,8 +44,8 @@ export function SearchPanel({
                 type="button"
                 onClick={onUseMyLocation}
                 disabled={locating}
-                aria-label="Start from my current location"
-                title="Use my location"
+                aria-label={t('Start from my current location')}
+                title={t('Use my location')}
                 className="grid size-10 shrink-0 place-items-center rounded-lg text-teal-700 hover:bg-teal-50 disabled:opacity-60"
               >
                 <LocateIcon size={20} className={locating ? 'animate-pulse' : undefined} />
@@ -52,8 +53,8 @@ export function SearchPanel({
             }
           />
           <LocationInput
-            label="To"
-            placeholder="Where to?"
+            label={t('To')}
+            placeholder={t('Where to?')}
             value={to}
             onSelect={onToChange}
             onFocus={onInputFocus}
@@ -64,7 +65,7 @@ export function SearchPanel({
           type="button"
           onClick={onSwap}
           disabled={!from && !to}
-          aria-label="Swap start and destination"
+          aria-label={t('Swap start and destination')}
           // Pinned between the two inputs (48 px fields + 8 px gap), even when suggestions open.
           className="mt-[30px] grid w-10 shrink-0 place-items-center self-start rounded-lg py-3 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
         >

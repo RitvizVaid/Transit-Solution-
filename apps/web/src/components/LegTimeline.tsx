@@ -3,7 +3,8 @@ import { DEFAULT_ROUTE_COLOR, readableTextColor } from '../lib/color';
 import { formatDistance, formatDuration, formatFrequency, MODE_META } from '../lib/format';
 import { ModeIcon, PinIcon } from './icons';
 import { LiveArrivalBadge } from './LiveArrivalBadge';
-import { ShareRideButton } from './RideShare';
+import { NextSharedVehicle, ShareRideButton } from './RideShare';
+import { t } from '../lib/i18n';
 
 /** Step-by-step view of an itinerary: walk, board, ride, get off, arrive. */
 export function LegTimeline({ legs }: { legs: Leg[] }) {
@@ -18,7 +19,9 @@ export function LegTimeline({ legs }: { legs: Leg[] }) {
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-amber-500 text-white">
             <PinIcon size={16} />
           </span>
-          <p className="pt-1.5 font-medium text-slate-900">Arrive at {last.to.name}</p>
+          <p className="pt-1.5 font-medium text-slate-900">
+            {t('Arrive at {place}', { place: last.to.name })}
+          </p>
         </li>
       )}
     </ol>
@@ -60,25 +63,39 @@ function LegStep({ leg }: { leg: Leg }) {
       <div className="min-w-0 flex-1 pb-5">
         {walk ? (
           <>
-            <p className="pt-1.5 font-medium text-slate-900">Walk to {leg.to.name}</p>
+            <p className="pt-1.5 font-medium text-slate-900">
+              {t('Walk to {place}', { place: leg.to.name })}
+            </p>
             <p className="text-sm text-slate-500">
-              {formatDistance(leg.distanceMeters)} · about {formatDuration(leg.durationSeconds)}
+              {t('{distance} · about {duration}', {
+                distance: formatDistance(leg.distanceMeters),
+                duration: formatDuration(leg.durationSeconds),
+              })}
             </p>
           </>
         ) : (
           <>
             <p className="pt-1.5 font-medium text-slate-900">
               {meta.label} {leg.routeShortName ?? ''}
-              <span className="font-normal text-slate-500"> from {leg.from.name}</span>
+              <span className="font-normal text-slate-500">
+                {' '}
+                {t('from {place}', { place: leg.from.name })}
+              </span>
             </p>
             <p className="text-sm text-slate-500">
-              Get off at <span className="text-slate-700">{leg.to.name}</span> ·{' '}
+              {t('Get off at')} <span className="text-slate-700">{leg.to.name}</span> ·{' '}
               {formatDuration(leg.durationSeconds)} · {formatDistance(leg.distanceMeters)}
-              {leg.frequencyMinutes && <> · leaves {formatFrequency(leg.frequencyMinutes)}</>}
+              {leg.frequencyMinutes && (
+                <>
+                  {' '}
+                  · {t('leaves {frequency}', { frequency: formatFrequency(leg.frequencyMinutes) })}
+                </>
+              )}
             </p>
             <div className="mt-1.5">
               <LiveArrivalBadge leg={leg} detailed />
             </div>
+            <NextSharedVehicle leg={leg} />
             <ShareRideButton leg={leg} />
           </>
         )}

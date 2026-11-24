@@ -1,4 +1,4 @@
-import type { LegMode, RidePosition, RidePositionResponse } from '@transit/shared-types';
+import type { LegMode, Occupancy, RidePosition, RidePositionResponse } from '@transit/shared-types';
 
 /** How often the phone sends its latest fix while sharing. */
 export const SEND_EVERY_MS = 5_000;
@@ -41,6 +41,8 @@ export type RideShareState =
       signal: ShareSignal;
       /** Fixes accepted by the server during this ride. */
       accepted: number;
+      /** The rider's answer to "how full is it?", sent with every fix. */
+      occupancy?: Occupancy;
     }
   | { status: 'stopped'; routeName: string; reason: StopReason; accepted: number };
 
@@ -70,6 +72,8 @@ export class RideShare {
   private readonly listeners = new Set<() => void>();
   private rideId: string | null = null;
   private latest: Fix | null = null;
+  /** Most recent fix already sent, re-sent when only the occupancy answer changes. */
+  private lastSent: Fix | null = null;
   private lastSentAt: number | null = null;
   private inFlight = false;
   private cleanup: (() => void)[] = [];
@@ -96,6 +100,7 @@ export class RideShare {
     }
     this.rideId = this.deps.newRideId();
     this.latest = null;
+    this.lastSent = null;
     this.lastSentAt = null;
     this.set({
       status: 'sharing',
@@ -127,8 +132,21 @@ export class RideShare {
     const rideId = this.rideId;
     this.rideId = null;
     this.latest = null;
+    this.lastSent = null;
     if (rideId && this.lastSentAt !== null) void this.deps.end(rideId).catch(() => undefined);
     this.set({ status: 'stopped', routeName: s.routeName, reason, accepted: s.accepted });
+  }
+
+  /** Rider says how full the vehicle is; others see it with the next update. */
+  setOccupancy(occupancy: Occupancy): void {
+    const s = this.sharing();
+    if (!s || s.occupancy === occupancy) return;
+    this.patch({ occupancy });
+    // Standing still (stuck in traffic) produces no new GPS fix: resend the last one.
+    if (!this.latest && this.lastSent) {
+      this.latest = this.lastSent;
+      void this.tick();
+    }
   }
 
   /** Forget a finished ride's summary. */
@@ -145,7 +163,8 @@ export class RideShare {
     }
     const fix = this.latest;
     if (!fix || this.inFlight) return;
-    this.latest = null; // each fix is sent at most once
+    this.latest = null; // each fix is sent at most once (see setOccupancy)
+    this.lastSent = fix;
     this.inFlight = true;
     this.lastSentAt = this.deps.now();
     const rideId = this.rideId;
@@ -156,6 +175,7 @@ export class RideShare {
         coordinates: [fix.lng, fix.lat],
         accuracyM: fix.accuracyM,
         recordedAt: new Date(fix.at).toISOString(),
+        occupancy: s.occupancy,
       });
       if (this.rideId !== rideId) return; // stopped meanwhile
       if (res.accepted) {

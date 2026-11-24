@@ -1,5 +1,5 @@
 import { API } from './playwright.config';
-import { CC_MARKET, expect, KG_METRO, REPORT_TOKENS, test, WEB } from './fixtures';
+import { CC_MARKET, expect, KG_METRO, REPORT_TOKENS, test, TIS_HAZARI, WEB } from './fixtures';
 
 const planUrl = (from: string, to: string) =>
   `${WEB}/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
@@ -48,7 +48,9 @@ test.describe('commuter web app', () => {
   }) => {
     await page.goto(planUrl(KG_METRO, CC_MARKET));
     const first = page.getByRole('article').first();
-    await expect(first).toContainText('autos at stand');
+    // Stand info is either the schedule (no report yet) or labelled as a report. The mobile
+    // and desktop projects share one API, so an earlier run may already have reported.
+    await expect(first).toContainText(/no stand report yet|reported \S/);
     for (let i = 0; i < 2; i++) {
       const res = await request.post(`${API}/api/v1/telemetry/reports`, {
         headers: { authorization: `Bearer ${REPORT_TOKENS['kg-auto-1']}` },
@@ -98,5 +100,44 @@ test.describe('commuter web app', () => {
   test('health and API docs are served', async ({ request }) => {
     expect((await request.get(`${API}/health`)).ok()).toBe(true);
     expect((await request.get(`${API}/docs/json`)).ok()).toBe(true);
+  });
+
+  test('an empty result explains why and lets the commuter suggest a route', async ({
+    isolated: page,
+  }) => {
+    // Tis Hazari is ~900 m from the nearest corridor: beyond the walking limit.
+    await page.goto(planUrl(TIS_HAZARI, '28.62860,77.24100,ITO'));
+    await expect(
+      page.getByText(/none of the routes this app knows stop within a short walk of your start/i),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: /Know a shared auto or bus/ }).click();
+    const form = page.getByRole('form', { name: 'Suggest a route' });
+    await form.getByLabel('Vehicle', { exact: true }).selectOption('E_RICKSHAW');
+    await form.getByLabel(/Name or number/).fill('Tis Hazari - ITO');
+    await form.getByLabel(/Usual fare/).fill('25');
+    const sent = page.waitForRequest((r) => r.url().endsWith('/api/v1/suggestions'));
+    await form.getByRole('button', { name: 'Send suggestion' }).click();
+    const body = (await sent).postDataJSON() as Record<string, unknown>;
+    expect(body).toMatchObject({ mode: 'E_RICKSHAW', routeName: 'Tis Hazari - ITO', fareInr: 25 });
+    await expect(page.getByText(/saved for review/)).toBeVisible();
+  });
+
+  test('switches the planner to Hindi and remembers the choice', async ({ isolated: page }) => {
+    await page.goto(planUrl(KG_METRO, CC_MARKET));
+    await expect(page.getByRole('article').first()).toContainText('Shared auto KG-1');
+    await page.getByRole('button', { name: 'Change language' }).click();
+
+    await expect(page.getByRole('tab', { name: 'यात्रा प्लान करें' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /जाने के? \d+ तरीक/ })).toBeVisible();
+    const first = page.getByRole('article').first();
+    await expect(first).toContainText('शेयर्ड ऑटो KG-1');
+    await expect(first).toContainText('अनुमानित किराया');
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe('hi');
+
+    await page.reload();
+    await expect(page.getByRole('tab', { name: 'यात्रा प्लान करें' })).toBeVisible();
+    await page.getByRole('button', { name: 'भाषा बदलें' }).click();
+    await expect(page.getByRole('tab', { name: 'Plan a trip' })).toBeVisible();
   });
 });

@@ -108,6 +108,79 @@ describe('Planner (built-in)', () => {
   });
 });
 
+describe('Planner timing and explanations', () => {
+  const at = (hhmm: string) => new Date(`2026-12-01T${hhmm}:00+05:30`);
+  const waitOf = (i: {
+    durationSeconds: number;
+    walkTimeSeconds: number;
+    transitTimeSeconds: number;
+  }) => i.durationSeconds - i.walkTimeSeconds - i.transitTimeSeconds;
+
+  it('scales each route by its own headway when a stand report changes the wait', () => {
+    const stands = new StandStore(net, () => MORNING.getTime());
+    const planner = new Planner(net, stands);
+    const fatehpuri = { lat: 28.6563, lng: 77.2216 };
+    const firstRide = (from: typeof PLACES.kgMetro, to: typeof PLACES.kgMetro, route: string) =>
+      planner.plan(from, to, { departAt: MORNING, maxResults: 10 }).itineraries.find((i) => {
+        const r = rides(i.legs);
+        return r.length === 1 && r[0] === route;
+      });
+    const kgBefore = firstRide(PLACES.kgMetro, PLACES.ccMarket, 'KG-1')!;
+    const grBefore = firstRide(PLACES.kgMetro, fatehpuri, 'GR-2')!;
+    // Schedule: half the headway (KG-1 every 4 min, GR-2 every 7.5 min).
+    expect(waitOf(kgBefore)).toBe(120);
+    expect(waitOf(grBefore)).toBe(225);
+
+    for (let i = 0; i < 2; i++) {
+      stands.apply({
+        reportId: `scale-${i}`,
+        standId: 'kg-auto-1',
+        kind: 'STAND_FULL',
+        reportedAt: MORNING.toISOString(),
+      });
+    }
+    // The stand reports twice its usual wait: each route's wait doubles, not "4 min for all".
+    expect(stands.waitFactor('kg-auto-1')).toBe(2);
+    expect(waitOf(firstRide(PLACES.kgMetro, PLACES.ccMarket, 'KG-1')!)).toBe(240);
+    const gr2 = net.patterns.find((p) => p.tripId === 'GR-2-d0')!;
+    expect(planner.waitSec(gr2, 'kg-auto-1')).toBe(450);
+    // A non-stand stop on the same route keeps the schedule wait, so the planner may now
+    // prefer walking on to it instead of queueing at the crowded stand.
+    expect(planner.waitSec(gr2, 'lothian-bridge')).toBe(225);
+    const grAfter = firstRide(PLACES.kgMetro, fatehpuri, 'GR-2')!;
+    expect(grAfter.durationSeconds).toBeLessThanOrEqual(grBefore.durationSeconds + 225);
+  });
+
+  it('only boards routes still running when the rider reaches the stop', () => {
+    const planner = new Planner(net);
+    const routesAt = (t: Date) =>
+      planner
+        .plan(PLACES.kgMetro, PLACES.ccMarket, { departAt: t })
+        .itineraries.flatMap((i) => rides(i.legs));
+    // KG-1 runs until 23:00; the walk to the stand takes a couple of minutes.
+    expect(routesAt(at('22:50'))).toContain('KG-1');
+    expect(routesAt(at('22:59'))).not.toContain('KG-1');
+  });
+
+  it('explains an empty result as precisely as the data allows', () => {
+    const planner = new Planner(net);
+    const reason = (from: typeof PLACES.kgMetro, to: typeof PLACES.kgMetro, t = MORNING) =>
+      planner.plan(from, to, { departAt: t });
+    expect(reason(PLACES.gurugram, PLACES.ccMarket)).toEqual({
+      itineraries: [],
+      noRouteReason: 'no_stops_near_origin',
+    });
+    expect(reason(PLACES.ccMarket, PLACES.gurugram).noRouteReason).toBe(
+      'no_stops_near_destination',
+    );
+    expect(reason(PLACES.civilLines, PLACES.ito, NIGHT).noRouteReason).toBe(
+      'outside_service_hours',
+    );
+    // Results never carry a reason.
+    expect(reason(PLACES.kgMetro, PLACES.ccMarket)).not.toHaveProperty('noRouteReason');
+  });
+});
+
 describe('OTP integration', () => {
   const otpBody = {
     data: {

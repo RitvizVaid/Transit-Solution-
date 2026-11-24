@@ -157,6 +157,8 @@ export class OtpClient {
         ...base,
         mode,
         routeId: route?.id,
+        fromStopId: boardStop?.id,
+        toStopId: alightStop?.id,
         routeShortName: route?.shortName ?? l.route?.shortName,
         routeColor: route?.color ?? (l.route?.color ? `#${l.route.color}` : undefined),
         frequencyMinutes: route?.frequencyMinutes,

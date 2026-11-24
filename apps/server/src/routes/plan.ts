@@ -1,5 +1,6 @@
 import type { PlanRequest, PlanResponse } from '@transit/shared-types';
 import type { FastifyPluginAsync } from 'fastify';
+import { limitByIp } from '../services/rateLimit.js';
 
 const lat = { type: 'number', minimum: -90, maximum: 90 } as const;
 const lng = { type: 'number', minimum: -180, maximum: 180 } as const;
@@ -9,6 +10,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Querystring: PlanRequest; Reply: PlanResponse | { error: string } }>(
     '/plan',
     {
+      onRequest: limitByIp(() => app.transit.limits?.plan),
       schema: {
         tags: ['planning'],
         summary: 'Plan a trip between two points',

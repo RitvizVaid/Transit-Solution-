@@ -4,6 +4,7 @@ import type {
   LatLng,
   Leg,
   NamedPlace,
+  NoRouteReason,
   PlanResponse,
 } from '@transit/shared-types';
 import type { NetworkRoute, Pattern, TransitNetwork } from '../gtfs/network.js';
@@ -114,7 +115,9 @@ export class Planner {
 
   plan(from: LatLng, to: LatLng, opts: PlanOptions = {}): PlanResponse {
     const nowSec = localSecondsOfDay(opts.departAt ?? new Date());
-    const active = (p: Pattern) => isWithin(nowSec, p.serviceStartSec, p.serviceEndSec);
+    /** Is the route running `afterSec` seconds from departure (when the rider gets to it)? */
+    const runningAt = (p: Pattern, afterSec: number) =>
+      isWithin(Math.round(nowSec + afterSec) % 86400, p.serviceStartSec, p.serviceEndSec);
 
     const access = this.accessMap(from);
     const egress = this.accessMap(to);
@@ -125,13 +128,12 @@ export class Planner {
     };
 
     for (const p1 of this.net.patterns) {
-      if (!active(p1)) continue;
       const route1 = this.net.routes.get(p1.routeId);
       if (!route1) continue;
 
       p1.stops.forEach((s1, i) => {
         const acc = access.get(s1.stopId);
-        if (!acc) return;
+        if (!acc || !runningAt(p1, acc.walkSec)) return;
         const wait1 = this.waitSec(p1, s1.stopId);
 
         for (let k = i + 1; k < p1.stops.length; k++) {
@@ -158,7 +160,8 @@ export class Planner {
             const tw =
               near.id === sk.stopId ? { walkM: 0, walkSec: 0 } : walkFor(near.distanceMeters);
             for (const { pattern: p2, index: m } of this.net.servedBy.get(near.id) ?? []) {
-              if (p2.routeId === p1.routeId || !active(p2)) continue;
+              // The second route must still be running when the rider reaches it.
+              if (p2.routeId === p1.routeId || !runningAt(p2, base + tw.walkSec)) continue;
               const route2 = this.net.routes.get(p2.routeId);
               if (!route2) continue;
               const wait2 = this.waitSec(p2, near.id);
@@ -189,7 +192,7 @@ export class Planner {
     // Nothing with ≤ 1 transfer: search deeper (up to maxRides) so every pair of points in
     // the network stays plannable. Fewest transfers wins; this only runs when needed.
     if (![...best.values()].some((o) => o.rides.length > 0)) {
-      const deep = this.roundSearch(access, egress, active, PLANNER.maxRides);
+      const deep = this.roundSearch(access, egress, runningAt, PLANNER.maxRides);
       if (deep) consider(deep);
     }
 
@@ -209,7 +212,26 @@ export class Planner {
 
     const fromPlace: NamedPlace = { name: opts.fromName || 'Start', ...from };
     const toPlace: NamedPlace = { name: opts.toName || 'Destination', ...to };
-    return { itineraries: kept.map((o) => this.toItinerary(o, fromPlace, toPlace)) };
+    const itineraries = kept.map((o) => this.toItinerary(o, fromPlace, toPlace));
+    if (itineraries.length > 0) return { itineraries };
+    return { itineraries, noRouteReason: this.whyNoRoute(access, egress, nowSec) };
+  }
+
+  /** The most specific reason the search came back empty that the data can support. */
+  private whyNoRoute(
+    access: Map<string, Access>,
+    egress: Map<string, Access>,
+    nowSec: number,
+  ): NoRouteReason {
+    if (access.size === 0) return 'no_stops_near_origin';
+    if (egress.size === 0) return 'no_stops_near_destination';
+    const serving = (stops: Map<string, Access>) =>
+      [...stops.keys()].flatMap((id) => (this.net.servedBy.get(id) ?? []).map((x) => x.pattern));
+    const near = [...serving(access), ...serving(egress)];
+    if (!near.some((p) => isWithin(nowSec, p.serviceStartSec, p.serviceEndSec))) {
+      return 'outside_service_hours';
+    }
+    return 'no_connection';
   }
 
   private accessMap(point: LatLng): Map<string, Access> {
@@ -228,7 +250,7 @@ export class Planner {
   private roundSearch(
     access: Map<string, Access>,
     egress: Map<string, Access>,
-    active: (p: Pattern) => boolean,
+    runningAt: (p: Pattern, afterSec: number) => boolean,
     maxRides: number,
   ): Option | null {
     let ready = new Map<string, Ready>();
@@ -244,10 +266,11 @@ export class Planner {
       const arrived = new Map<string, Arrived>();
       for (const p of this.net.patterns) {
         const route = this.net.routes.get(p.routeId);
-        if (!route || !active(p)) continue;
+        if (!route) continue;
         p.stops.forEach((s, i) => {
           const rd = ready.get(s.stopId);
-          if (!rd) return;
+          // rd.cost includes transfer penalties, so this errs towards "already closed".
+          if (!rd || !runningAt(p, rd.cost)) return;
           if (rd.via.kind === 'transfer' && rd.via.arrived.ride.route.id === route.id) return;
           const wait = this.waitSec(p, s.stopId);
           for (let j = i + 1; j < p.stops.length; j++) {
@@ -317,10 +340,15 @@ export class Planner {
     }
   }
 
-  private waitSec(pattern: Pattern, stopId: string): number {
+  /**
+   * Expected wait for this route at this stop: half its headway, scaled by how a recent
+   * stand report says the stand compares with normal (e.g. a full stand doubles it).
+   */
+  waitSec(pattern: Pattern, stopId: string): number {
+    const scheduled = pattern.headwaySec / 2;
     const stop = this.net.stops.get(stopId);
-    const live = stop?.isStand ? this.stands?.waitMinutes(stopId) : undefined;
-    return live !== undefined ? live * 60 : Math.round(pattern.headwaySec / 2);
+    const factor = stop?.isStand ? this.stands?.waitFactor(stopId) : undefined;
+    return Math.round(factor === undefined ? scheduled : Math.min(scheduled * factor, 45 * 60));
   }
 
   /**
@@ -423,6 +451,8 @@ export class Planner {
       legs.push({
         mode: r.route.mode,
         routeId: r.route.id,
+        fromStopId: b.stopId,
+        toStopId: a.stopId,
         routeShortName: r.route.shortName,
         routeColor: r.route.color,
         from: this.place(b.stopId),

@@ -16,6 +16,7 @@ import { loadRecentTrips, type RecentTrip } from '../lib/recentTrips';
 import { readTripFromSearch, tripSearch } from '../lib/url';
 import { MapView } from '../map/MapView';
 import type { Place } from '../types';
+import { getLang, setLang, t } from '../lib/i18n';
 
 type Tab = 'plan' | 'nearby';
 const SIDE_PANEL_PX = 432;
@@ -129,8 +130,8 @@ export function PlannerPage() {
       <div role="tablist" aria-label="Mode" className="flex gap-1">
         {(
           [
-            ['plan', 'Plan a trip'],
-            ['nearby', 'Nearby lines'],
+            ['plan', t('Plan a trip')],
+            ['nearby', t('Nearby lines')],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -192,18 +193,28 @@ export function PlannerPage() {
         className="pointer-events-none fixed inset-x-0 top-0 z-30 space-y-2 px-3 pt-[max(env(safe-area-inset-top),12px)]"
         style={isWide ? { left: SIDE_PANEL_PX } : undefined}
       >
-        {!isWide && (
-          <p className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm backdrop-blur">
-            <img src="/favicon.svg" alt="" width={18} height={18} />
-            Transit <span className="font-normal text-slate-500">· Delhi pilot</span>
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          {!isWide && (
+            <p className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm backdrop-blur">
+              <img src="/favicon.svg" alt="" width={18} height={18} />
+              Transit <span className="font-normal text-slate-500">· {config.city.label}</span>
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => setLang(getLang() === 'hi' ? 'en' : 'hi')}
+            aria-label={t('Change language')}
+            className="pointer-events-auto ml-auto min-h-9 rounded-full bg-white/90 px-3 text-sm font-semibold text-slate-900 shadow-sm backdrop-blur hover:bg-white"
+          >
+            {getLang() === 'hi' ? 'English' : <span lang="hi">हिन्दी</span>}
+          </button>
+        </div>
         <div className="max-w-md">
           <RideShareBanner />
         </div>
       </div>
 
-      <BottomSheet snap={snap} onSnapChange={setSnap} header={header} label="Trip planner">
+      <BottomSheet snap={snap} onSnapChange={setSnap} header={header} label={t('Trip planner')}>
         {/* Notices live in the sheet so they never cover the search fields. */}
         {(!online || showInstall) && (
           <div className="space-y-2 px-4 pt-4">
@@ -228,6 +239,7 @@ export function PlannerPage() {
               recentTrips={recentTrips}
               onOpenRecent={openRecent}
               sameOriginAndDestination={sameOriginAndDestination}
+              trip={query}
             />
           ) : (
             <NearbyList

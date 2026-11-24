@@ -8,15 +8,31 @@ export type PassengerQueueLevel = (typeof QUEUE_LEVELS)[number];
 // GET /api/v1/stands/:standId
 // ---------------------------------------------------------------------------
 
+/** A recent marshal report stays in effect this long, then the stand reverts to baseline. */
+export const STAND_REPORT_TTL_MS = 30 * 60_000;
+
+/**
+ * `reported` = shaped by a marshal report within STAND_REPORT_TTL_MS.
+ * `baseline` = typical values from the route schedule; nobody has observed them.
+ */
+export const STAND_SOURCES = ['baseline', 'reported'] as const;
+export type StandSource = (typeof STAND_SOURCES)[number];
+
 export interface StandStatus {
   standId: string;
   name: string;
   coordinates: LngLatTuple;
-  /** e.g. 5 autos waiting. */
-  availableVehiclesEstimate: number;
+  /** Where these values come from. Only `reported` values may be shown as live. */
+  source: StandSource;
+  /** e.g. 5 autos waiting. Null when no recent report gives a basis for a count. */
+  availableVehiclesEstimate: number | null;
   passengerQueueLevel: PassengerQueueLevel;
   averageWaitMinutes: number;
-  /** ISO 8601 timestamp. */
+  /** ISO 8601: last accepted report, or null if this stand has none. */
+  lastReportedAt: string | null;
+  /** ISO 8601: when the reported values revert to baseline. Null for baseline. */
+  expiresAt: string | null;
+  /** ISO 8601: last report, or when the server loaded the feed. Prefer `lastReportedAt`. */
   lastUpdated: string;
 }
 
@@ -46,6 +62,10 @@ export interface StandReport {
 // Live vehicles
 // ---------------------------------------------------------------------------
 
+/** How full a vehicle is, as told by someone riding it. */
+export const OCCUPANCY_LEVELS = ['seats_available', 'standing_only', 'full'] as const;
+export type Occupancy = (typeof OCCUPANCY_LEVELS)[number];
+
 /** `crowd` = a commuter sharing their ride; `simulated` = demo traffic, never real. */
 export const VEHICLE_SOURCES = ['crowd', 'simulated'] as const;
 export type VehicleSource = (typeof VEHICLE_SOURCES)[number];
@@ -60,6 +80,8 @@ export interface VehiclePosition {
   speedKmh?: number;
   timestamp: string;
   source?: VehicleSource;
+  /** Reported by a rider on board (crowd vehicles only). */
+  occupancy?: Occupancy;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +101,8 @@ export interface RidePosition {
   accuracyM?: number;
   /** ISO 8601 time the phone took the fix. */
   recordedAt: string;
+  /** The rider's latest answer to "how full is it?", if they gave one. */
+  occupancy?: Occupancy;
 }
 
 export const RIDE_REJECT_REASONS = [
@@ -105,6 +129,32 @@ export type RidePositionResponse =
 
 export interface RideEnd {
   rideId: string;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/arrivals?stopId=&routeId=&towardsStopId=
+// ---------------------------------------------------------------------------
+
+/**
+ * A vehicle a rider is sharing that is heading towards the stop. Only crowd vehicles are
+ * used: simulated traffic is never turned into an arrival estimate.
+ */
+export interface ArrivalEstimate {
+  routeId: string;
+  vehicleId: string;
+  /** Expected seconds until it reaches the stop, as a range (running times vary). */
+  etaSeconds: { min: number; max: number };
+  /** Distance along the route still to cover. */
+  distanceMeters: number;
+  occupancy?: Occupancy;
+  /** ISO 8601 time of the position this is based on. */
+  observedAt: string;
+}
+
+export interface ArrivalsResponse {
+  stopId: string;
+  /** Soonest first. Empty when nobody is sharing an approaching vehicle. */
+  arrivals: ArrivalEstimate[];
 }
 
 // ---------------------------------------------------------------------------

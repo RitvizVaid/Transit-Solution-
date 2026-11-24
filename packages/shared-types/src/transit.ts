@@ -46,8 +46,26 @@ export interface PlanRequest {
   toName?: string;
 }
 
+/**
+ * Why `itineraries` is empty, as far as the planner can tell. It describes this search,
+ * not the real world: informal routes the network does not know about may still exist.
+ */
+export const NO_ROUTE_REASONS = [
+  /** No known stop within walking distance of the start. */
+  'no_stops_near_origin',
+  /** No known stop within walking distance of the destination. */
+  'no_stops_near_destination',
+  /** Stops are near both ends, but none of their routes run at this time. */
+  'outside_service_hours',
+  /** Routes run near both ends, but the search found no way to connect them. */
+  'no_connection',
+] as const;
+export type NoRouteReason = (typeof NO_ROUTE_REASONS)[number];
+
 export interface PlanResponse {
   itineraries: Itinerary[];
+  /** Set only when `itineraries` is empty. */
+  noRouteReason?: NoRouteReason;
 }
 
 export interface Itinerary {
@@ -64,6 +82,10 @@ export interface Leg {
   mode: LegMode;
   /** Network route id (GET /api/v1/routes). Absent for WALK legs and unknown OTP routes. */
   routeId?: string;
+  /** Network stop id where this ride boards (GET /api/v1/arrivals). Absent for WALK legs. */
+  fromStopId?: string;
+  /** Network stop id where this ride gets off; with `fromStopId` it fixes the direction. */
+  toStopId?: string;
   /** e.g. "Route 4A - Ring Road". Absent for WALK legs. */
   routeShortName?: string;
   /** Hex colour, e.g. "#FF8800". */
@@ -140,4 +162,27 @@ export interface FareRule {
   /** Optional zone-to-zone override. */
   fromZone?: string;
   toZone?: string;
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/v1/suggestions: a commuter tells us about a route the app does not know
+// ---------------------------------------------------------------------------
+
+export interface RouteSuggestionInput {
+  from: NamedPlace;
+  to: NamedPlace;
+  mode?: VehicleMode;
+  /** Name or number painted on the vehicle, e.g. "Seelampur - ISBT". */
+  routeName?: string;
+  /** What the rider usually pays, in rupees. */
+  fareInr?: number;
+  note?: string;
+}
+
+/** Held for review; never used for planning or shown to others until verified. */
+export interface RouteSuggestion extends RouteSuggestionInput {
+  id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  /** ISO 8601. */
+  createdAt: string;
 }

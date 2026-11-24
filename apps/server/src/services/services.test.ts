@@ -75,7 +75,59 @@ describe('StandStore', () => {
     expect(store.get('kg-auto-1')).toMatchObject({
       averageWaitMinutes: 2,
       passengerQueueLevel: 'normal',
+      // Not observed: no invented vehicle count, nothing to expire.
+      source: 'baseline',
+      availableVehiclesEstimate: null,
+      lastReportedAt: null,
+      expiresAt: null,
     });
+  });
+
+  it('marks reports as reported, with an expiry, and only counts vehicles it has a basis for', () => {
+    const store = new StandStore(net, () => MORNING.getTime());
+    const reportedAt = new Date(MORNING.getTime() - 60_000).toISOString();
+    const departed = store.apply({
+      reportId: 'dep-1',
+      standId: 'kg-auto-1',
+      kind: 'DEPARTING_NOW',
+      reportedAt,
+    });
+    expect(departed).toMatchObject({ source: 'reported', lastReportedAt: reportedAt });
+    expect(Date.parse(departed.expiresAt!)).toBe(Date.parse(reportedAt) + REPORT_TTL_MS);
+    // "One left" says nothing about how many remain when nobody counted before.
+    expect(departed.availableVehiclesEstimate).toBeNull();
+    const empty = store.apply({
+      reportId: 'empty-1',
+      standId: 'kg-auto-1',
+      kind: 'STAND_EMPTY',
+      reportedAt: new Date(MORNING.getTime()).toISOString(),
+    });
+    expect(empty.availableVehiclesEstimate).toBe(1);
+  });
+
+  it('announces expired reports once, so open apps revert without reloading', () => {
+    let now = MORNING.getTime();
+    const store = new StandStore(net, () => now);
+    const changes = vi.fn();
+    store.apply({
+      reportId: 'full-x',
+      standId: 'kg-auto-1',
+      kind: 'STAND_FULL',
+      reportedAt: new Date(now).toISOString(),
+    });
+    store.on('change', changes);
+    expect(store.announceExpired()).toBe(0);
+    now += REPORT_TTL_MS + 1;
+    expect(store.announceExpired()).toBe(1);
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(changes.mock.calls[0]![0]).toMatchObject({
+      standId: 'kg-auto-1',
+      source: 'baseline',
+      availableVehiclesEstimate: null,
+      expiresAt: null,
+      lastReportedAt: new Date(MORNING.getTime()).toISOString(),
+    });
+    expect(store.announceExpired()).toBe(0);
   });
 
   it('escalates a full stand and emits changes', () => {

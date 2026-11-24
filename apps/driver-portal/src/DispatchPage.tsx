@@ -292,7 +292,14 @@ function Reporter({
           className="mt-3 grid grid-cols-3 gap-2 text-center"
         >
           <Stat label="Wait" value={`~${status.averageWaitMinutes} min`} />
-          <Stat label="Vehicles" value={String(status.availableVehiclesEstimate)} />
+          <Stat
+            label="Vehicles"
+            value={
+              status.source === 'reported' && status.availableVehiclesEstimate !== null
+                ? String(status.availableVehiclesEstimate)
+                : '–'
+            }
+          />
           <Stat label="Queue" value={QUEUE_LABEL[status.passengerQueueLevel]} />
         </section>
       )}

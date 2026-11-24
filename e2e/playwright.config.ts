@@ -43,6 +43,8 @@ export default defineConfig({
         NODE_ENV: 'test',
         SIMULATE_VEHICLES: 'true',
         SIMULATE_REPORTS: 'false',
+        // Every test hits the API from one IP; limits are covered by server tests.
+        RATE_LIMIT: 'off',
         DEMO_TIME_OF_DAY: '10:00',
         REPORT_TOKENS_JSON: JSON.stringify(REPORT_TOKENS),
         REPORT_DB_PATH: ':memory:',

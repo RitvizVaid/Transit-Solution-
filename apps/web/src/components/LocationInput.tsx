@@ -2,6 +2,7 @@ import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'rea
 import { MIN_QUERY_LENGTH, useGeocode } from '../hooks/useGeocode';
 import type { Place } from '../types';
 import { CloseIcon, PinIcon } from './icons';
+import { t } from '../lib/i18n';
 
 interface Props {
   label: string;
@@ -116,7 +117,7 @@ export function LocationInput({
         {text && focused ? (
           <button
             type="button"
-            aria-label={`Clear ${label.toLowerCase()}`}
+            aria-label={t('Clear {label}', { label: label.toLowerCase() })}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setText('');
@@ -134,7 +135,7 @@ export function LocationInput({
       <div
         id={listId}
         role="listbox"
-        aria-label={`${label} suggestions`}
+        aria-label={t('{label} suggestions', { label })}
         hidden={!open}
         className="mt-1 overflow-hidden rounded-xl bg-white ring-1 ring-slate-200"
       >
@@ -167,10 +168,10 @@ export function LocationInput({
         {open && options.length === 0 && (
           <p className="px-3 py-3 text-sm text-slate-500" aria-live="polite">
             {geo.status === 'loading'
-              ? 'Searching…'
+              ? t('Searching…')
               : geo.status === 'error'
-                ? 'Search is unavailable right now. Check your connection.'
-                : 'No places found. Try a landmark or market name.'}
+                ? t('Search is unavailable right now. Check your connection.')
+                : t('No places found. Try a landmark or market name.')}
           </p>
         )}
       </div>

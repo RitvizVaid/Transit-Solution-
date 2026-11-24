@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDistance,
+  formatEta,
   formatDuration,
   formatFare,
   formatFrequency,
@@ -57,4 +58,13 @@ describe('formatRelativeTime', () => {
     ['2026-11-28T10:00:00Z', '3 d ago'],
     ['not a date', ''],
   ])('%s → %s', (iso, expected) => expect(formatRelativeTime(iso, now)).toBe(expected));
+});
+
+describe('formatEta', () => {
+  it('rounds an arrival range to whole minutes without ever showing 0–0', () => {
+    expect(formatEta({ min: 150, max: 330 })).toBe('2–6 min');
+    expect(formatEta({ min: 20, max: 90 })).toBe('within 2 min');
+    expect(formatEta({ min: 0, max: 50 })).toBe('under 1 min');
+    expect(formatEta({ min: 120, max: 130 })).toBe('2–3 min');
+  });
 });

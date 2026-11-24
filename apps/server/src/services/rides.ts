@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type {
+  ArrivalEstimate,
   LatLng,
   RidePosition,
   RidePositionResponse,
@@ -26,7 +27,26 @@ export const RIDES = {
   maxRideMs: 3 * 60 * 60_000,
   /** Upper bound on simultaneously tracked rides (memory / abuse guard). */
   maxActiveRides: 5_000,
+  /** Arrival estimates further out than this are not offered (too uncertain to help). */
+  maxEtaSec: 30 * 60,
+  /** Within this distance of the stop the vehicle counts as there / gone, not arriving. */
+  atStopM: 25,
 } as const;
+
+/**
+ * Seconds from the start of the pattern to `alongM`, interpolated between the
+ * timetable running times of the surrounding stops.
+ */
+export function offsetAt(pattern: Pattern, alongM: number): number {
+  const stops = pattern.stops;
+  let i = 0;
+  while (i < stops.length - 2 && stops[i + 1]!.distM <= alongM) i++;
+  const a = stops[i]!;
+  const b = stops[i + 1] ?? a;
+  const span = b.distM - a.distM;
+  const t = span > 0 ? Math.max(0, Math.min(1, (alongM - a.distM) / span)) : 0;
+  return a.offsetSec + (b.offsetSec - a.offsetSec) * t;
+}
 
 interface Ride {
   vehicleId: string;
@@ -133,6 +153,8 @@ export class RideTracker {
       speedKmh: speedKmh === undefined ? undefined : Math.round(speedKmh),
       timestamp: new Date(fixAt).toISOString(),
       source: 'crowd',
+      // A rider who answered "how full?" once keeps that answer until they change it.
+      occupancy: pos.occupancy ?? prev?.vehicle.occupancy,
     };
     this.rides.set(pos.rideId, {
       vehicleId,
@@ -146,6 +168,48 @@ export class RideTracker {
       vehicle,
     });
     return { accepted: true, vehicleId, offsetMeters: Math.round(offsetM), vehicle };
+  }
+
+  /**
+   * Shared vehicles heading towards `stopId` (optionally on one route), soonest first.
+   * With `towardsStopId`, only vehicles whose direction reaches `stopId` before it count:
+   * a vehicle going the other way passes the same stop but is no use to the rider.
+   * ETA = timetable running time from the vehicle's point on the route to the stop, minus
+   * the time since the fix, given as a range because real running times vary.
+   */
+  arrivals(stopId: string, routeId?: string, towardsStopId?: string): ArrivalEstimate[] {
+    const now = this.now();
+    this.prune(now);
+    const out: ArrivalEstimate[] = [];
+    for (const ride of this.rides.values()) {
+      if (now - ride.startedAt > RIDES.maxRideMs) continue;
+      if (routeId && ride.route.id !== routeId) continue;
+      const index = ride.pattern.stops.findIndex((s) => s.stopId === stopId);
+      const stop = ride.pattern.stops[index];
+      if (!stop) continue;
+      if (
+        towardsStopId &&
+        !ride.pattern.stops.slice(index + 1).some((s) => s.stopId === towardsStopId)
+      ) {
+        continue;
+      }
+      const distanceM = stop.distM - ride.alongM;
+      if (distanceM <= RIDES.atStopM) continue; // at the stop already, or past it
+      const sinceFixSec = Math.max(0, (now - ride.lastFixAt) / 1000);
+      const eta = stop.offsetSec - offsetAt(ride.pattern, ride.alongM) - sinceFixSec;
+      if (eta > RIDES.maxEtaSec) continue;
+      const etaSec = Math.max(0, eta);
+      const round10 = (n: number) => Math.round(n / 10) * 10;
+      out.push({
+        routeId: ride.route.id,
+        vehicleId: ride.vehicleId,
+        etaSeconds: { min: round10(etaSec * 0.8), max: round10(etaSec * 1.4 + 60) },
+        distanceMeters: Math.round(distanceM),
+        occupancy: ride.vehicle.occupancy,
+        observedAt: new Date(ride.lastFixAt).toISOString(),
+      });
+    }
+    return out.sort((a, b) => a.etaSeconds.min - b.etaSeconds.min);
   }
 
   /** Rider tapped "stop sharing". Returns the vehicle id that left the map, if any. */

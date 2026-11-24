@@ -2,12 +2,12 @@
 
 Owner: **Contributor 2**. MapLibre GL JS with OpenFreeMap vector tiles (no API key).
 
-| File                 | What                                                                 |
-| -------------------- | -------------------------------------------------------------------- |
-| `MapView.tsx`        | Props contract (`MapViewProps`), lazy-loads the map, error boundary + placeholder when WebGL/tiles are unavailable |
+| File                 | What                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MapView.tsx`        | Props contract (`MapViewProps`), lazy-loads the map, error boundary + placeholder when WebGL/tiles are unavailable                                                                                |
 | `TransitMap.tsx`     | The map: itinerary lines, origin/destination/user markers, Nearby radius, live stands (coloured by queue, tap for status) and live vehicles, long-press / right-click to set start or destination |
-| `geometry.ts`        | Polyline decoding, itinerary → GeoJSON, bounds, radius circle (tested) |
-| `vehicleAnimator.ts` | Glides markers between 2-s pings; drops vehicles silent for 15 s (tested) |
+| `geometry.ts`        | Polyline decoding, itinerary → GeoJSON, bounds, radius circle (tested)                                                                                                                            |
+| `vehicleAnimator.ts` | Glides markers between 2-s pings; drops vehicles silent for 15 s (tested)                                                                                                                         |
 
 - **Live data**: subscribes the map viewport over `/api/v1/live` (zoom ≥ 12) via `lib/live.ts`,
   re-subscribing on every pan/zoom and reconnect. Initial stands come from `GET /api/v1/stands`.

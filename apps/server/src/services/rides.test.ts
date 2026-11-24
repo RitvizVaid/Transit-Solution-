@@ -2,7 +2,7 @@ import type { LatLng, RidePosition } from '@transit/shared-types';
 import { describe, expect, it } from 'vitest';
 import { pilotNetwork } from '../test/fixtures.js';
 import { haversineMeters } from './geo.js';
-import { RIDES, RideTracker, vehicleIdFor } from './rides.js';
+import { offsetAt, RIDES, RideTracker, vehicleIdFor } from './rides.js';
 
 const net = pilotNetwork();
 const T0 = Date.parse('2026-12-01T10:00:00+05:30');
@@ -126,5 +126,54 @@ describe('RideTracker', () => {
     expect(tracker.report(fix(along(100), { rideId: 'ride-overflow-000000' }))).toMatchObject({
       reason: 'capacity',
     });
+  });
+});
+
+describe('Arrival estimates from shared rides', () => {
+  // CC-RF-d0 runs Fatehpuri → Red Fort; pick a stop well down the line.
+  const target = pattern.stops[pattern.stops.length - 1]!;
+
+  it('estimates when an approaching rider reaches a stop, as a range', () => {
+    const { tracker, fix } = setup();
+    tracker.report(fix(along(100), { occupancy: 'standing_only' }));
+    const [a] = tracker.arrivals(target.stopId);
+    expect(a).toBeDefined();
+    const expected = target.offsetSec - offsetAt(pattern, 100);
+    expect(a!.etaSeconds.min).toBeLessThanOrEqual(expected);
+    expect(a!.etaSeconds.max).toBeGreaterThan(expected);
+    expect(a).toMatchObject({ routeId: 'CC-RF', occupancy: 'standing_only' });
+    // ±1 m: the snapped point is rounded to 6 decimals (~0.1 m) before measuring.
+    expect(Math.abs(a!.distanceMeters - (target.distM - 100))).toBeLessThanOrEqual(1);
+  });
+
+  it('counts down as time passes and ignores vehicles that have passed the stop', () => {
+    const { tracker, fix, advance } = setup();
+    tracker.report(fix(along(100)));
+    const first = tracker.arrivals(target.stopId)[0]!;
+    advance(30_000);
+    const later = tracker.arrivals(target.stopId)[0]!;
+    expect(later.etaSeconds.min).toBeLessThan(first.etaSeconds.min);
+    // The first stop is behind the vehicle: nothing is arriving there.
+    expect(tracker.arrivals(pattern.stops[0]!.stopId)).toEqual([]);
+  });
+
+  it('keeps the last occupancy answer, filters by route and skips other routes', () => {
+    const { tracker, fix, advance } = setup();
+    tracker.report(fix(along(100), { occupancy: 'full' }));
+    advance(5_000);
+    tracker.report(fix(along(140)));
+    expect(tracker.positions()[0]!.occupancy).toBe('full');
+    expect(tracker.arrivals(target.stopId, 'KG-1')).toEqual([]);
+    expect(tracker.arrivals(target.stopId, 'CC-RF')).toHaveLength(1);
+  });
+
+  it('ignores vehicles going the other way through the same stop', () => {
+    const { tracker, fix } = setup();
+    tracker.report(fix(along(100)));
+    const stops = pattern.stops.map((s) => s.stopId);
+    const mid = stops[Math.floor(stops.length / 2)]!;
+    expect(tracker.arrivals(mid, 'CC-RF', stops[stops.length - 1])).toHaveLength(1);
+    // Boarding at `mid` to go back towards the start: this vehicle is no use.
+    expect(tracker.arrivals(mid, 'CC-RF', stops[0])).toEqual([]);
   });
 });

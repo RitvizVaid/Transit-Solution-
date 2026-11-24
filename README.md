@@ -17,11 +17,20 @@ Daryaganj–ITO and New Delhi Railway Station–Connaught Place. See the
 ## What works
 
 - **Trip planning** for frequency-based routes: walk + up to one transfer, expected waits
-  from live stand reports (or headways), per-ride distance fares in ₹, service hours.
-- **Live data** over WebSocket: stand queues and waits change the moment a marshal reports;
-  vehicles move on the map (simulated until driver GPS is live).
-- **Map** (MapLibre + OpenFreeMap): selected route, stands coloured by queue, live vehicles,
-  Nearby radius, long-press / right-click to set start or destination.
+  per route (headway, scaled by recent stand reports), per-ride distance fares in ₹, and
+  service hours checked when you reach each ride. Empty results say why.
+- **Crowdsourced live vehicles**: a commuter on a shared auto or minibus can share the ride.
+  Their phone's position is snapped to the route and shown on everyone's map (never stored),
+  people waiting further along see "next KG-1 in 2–6 min", and riders can say how full it is.
+  Simulated demo vehicles give way on any route with a real rider.
+- **Honest stand status**: a marshal's report counts as live for 30 minutes; otherwise the app
+  shows the schedule estimate, labelled as such, and never an invented vehicle count.
+- **Route suggestions**: when no route is found, commuters can describe one they know; it is
+  held for review and never used for planning until checked.
+- **Map** (MapLibre + OpenFreeMap): selected route, stands coloured by reported queue (grey
+  without a report), live vehicles, Nearby radius, long-press / right-click to set start or
+  destination.
+- **English / हिन्दी** toggle for the commuter planning flow (draft Hindi, needs review).
 - **Nearby lines** within 100 / 300 / 500 m.
 - **Offline**: installable PWA; recent trips and viewed map areas work without signal.
 - **Driver portal**: QR-code stand links, big one-tap reports, live feedback, offline outbox.
@@ -66,8 +75,8 @@ Or everything in Docker: `docker compose -f deploy/docker-compose.yml up --build
 
 ## Quality gates
 
-`pnpm lint` · `pnpm typecheck` · `pnpm test` (110 TS unit/integration tests) ·
-`pnpm data:test` (18 pipeline tests) · `pnpm e2e` (17 Playwright tests, mobile + desktop).
+`pnpm lint` · `pnpm typecheck` · `pnpm test` (186 TS unit/integration tests) ·
+`pnpm data:test` (18 pipeline tests) · `pnpm e2e` (50 Playwright tests, mobile + desktop).
 All run in CI with the Docker builds and a check that the committed GTFS matches its sources.
 
 ## Docs

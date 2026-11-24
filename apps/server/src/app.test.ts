@@ -2,7 +2,9 @@ import type {
   NearbyStopsResponse,
   NearestLineResponse,
   PlanResponse,
+  ArrivalsResponse,
   RidePositionResponse,
+  RouteSuggestion,
   ServerMessage,
   StandStatus,
   TransitRoute,
@@ -19,8 +21,10 @@ import { LiveHub } from './websocket/hub.js';
 const REPORT_TOKEN = 'a'.repeat(64);
 const RF_REPORT_TOKEN = 'b'.repeat(64);
 const MISSING_STAND_TOKEN = 'c'.repeat(64);
+const ADMIN_TOKEN = 'd'.repeat(64);
 const app = await buildApp({
   config: {
+    adminTokenHash: createHash('sha256').update(ADMIN_TOKEN).digest('hex'),
     gtfsDir: GTFS_DIR,
     reportDbPath: ':memory:',
     reportTokenHashes: {
@@ -339,9 +343,12 @@ describe('LiveHub', () => {
     standId: id,
     name: id,
     coordinates: [lng, lat],
-    availableVehiclesEstimate: 1,
+    source: 'baseline',
+    availableVehiclesEstimate: null,
     passengerQueueLevel: 'normal',
     averageWaitMinutes: 3,
+    lastReportedAt: null,
+    expiresAt: null,
     lastUpdated: '2026-12-01T00:00:00Z',
   });
 
@@ -478,6 +485,37 @@ describe('Crowd-shared rides', () => {
     expect(extra.body).not.toContain('123');
   });
 
+  it('turns a rider heading to a stop into an arrival estimate for people waiting', async () => {
+    const rideId = 'arrival-ride-0123456789';
+    // KG-1 towards Chandni Chowk: share from between GPO and Chandni Chowk Metro.
+    const res = await app.inject(ride(rideId, ON_KG1, { occupancy: 'seats_available' }));
+    const accepted = res.json<RidePositionResponse>();
+    expect(accepted).toMatchObject({ accepted: true });
+    const vehicleId = accepted.accepted ? accepted.vehicleId : '';
+    const kg1 = app.transit.network.patterns.filter((p) => p.routeId === 'KG-1');
+    const downstream = kg1
+      .flatMap((p) => {
+        const along = p.shape.project({ lat: ON_KG1[1], lng: ON_KG1[0] }).alongM;
+        return p.stops.filter((s) => s.distM - along > 200).map((s) => s.stopId);
+      })
+      .filter((id, i, all) => all.indexOf(id) === i);
+    const answers = await Promise.all(
+      downstream.map(async (stopId) =>
+        (
+          await app.inject({ method: 'GET', url: `/api/v1/arrivals?stopId=${stopId}&routeId=KG-1` })
+        ).json<ArrivalsResponse>(),
+      ),
+    );
+    // Other tests' riders may also be on KG-1: look for this one.
+    const mine = answers.flatMap((a) => a.arrivals).find((a) => a.vehicleId === vehicleId);
+    expect(mine).toMatchObject({ routeId: 'KG-1', occupancy: 'seats_available' });
+    expect(mine!.etaSeconds.max).toBeGreaterThan(mine!.etaSeconds.min);
+    await app.inject({ method: 'POST', url: '/api/v1/rides/end', payload: { rideId } });
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/arrivals?stopId=nope' })).statusCode,
+    ).toBe(404);
+  });
+
   it('returns routeId on transit legs so riders can share the right route', async () => {
     const res = await app.inject({
       method: 'GET',
@@ -488,6 +526,113 @@ describe('Crowd-shared rides', () => {
       .itineraries.flatMap((i) => i.legs)
       .filter((l) => l.mode !== 'WALK');
     expect(rides.length).toBeGreaterThan(0);
-    for (const leg of rides) expect(leg.routeId).toBeTruthy();
+    for (const leg of rides) {
+      expect(leg.routeId).toBeTruthy();
+      expect(app.transit.network.stops.has(leg.fromStopId!)).toBe(true);
+    }
+  });
+});
+
+describe('Rate limiting', () => {
+  it('answers 429 with Retry-After once a client exceeds the plan limit', async () => {
+    const limited = await buildApp({
+      config: {
+        gtfsDir: GTFS_DIR,
+        reportDbPath: ':memory:',
+        reportTokenHashes: {},
+        simulateVehicles: false,
+        simulateReports: false,
+        otpUrl: undefined,
+        demoTimeOfDay: '10:00',
+        rateLimits: {
+          planPerIp: 2,
+          ridesPerIp: 2,
+          suggestionsPerIp: 2,
+          sessionPerIp: 2,
+          reportsPerStand: 2,
+        },
+      },
+    });
+    try {
+      const plan = () =>
+        limited.inject({
+          method: 'GET',
+          url: '/api/v1/plan?fromLat=28.6675&fromLng=77.2282&toLat=28.6555&toLng=77.23',
+        });
+      expect((await plan()).statusCode).toBe(200);
+      expect((await plan()).statusCode).toBe(200);
+      const third = await plan();
+      expect(third.statusCode).toBe(429);
+      expect(Number(third.headers['retry-after'])).toBeGreaterThan(0);
+      // Other clients are unaffected.
+      const other = await limited.inject({
+        method: 'GET',
+        url: '/api/v1/plan?fromLat=28.6675&fromLng=77.2282&toLat=28.6555&toLng=77.23',
+        remoteAddress: '10.0.0.9',
+      });
+      expect(other.statusCode).toBe(200);
+    } finally {
+      await limited.close();
+    }
+  });
+});
+
+describe('Route suggestions', () => {
+  const suggestion = {
+    from: { name: 'Seelampur', lat: 28.670456, lng: 77.268912 },
+    to: { name: 'ISBT', lat: 28.668012, lng: 77.228034 },
+    mode: 'E_RICKSHAW',
+    routeName: 'Seelampur - ISBT',
+    fareInr: 20,
+    note: 'Every few minutes from the metro gate',
+  };
+
+  it('stores a suggestion for review, rounded to ~100 m, without using it for planning', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/suggestions',
+      payload: suggestion,
+    });
+    expect(res.statusCode).toBe(202);
+    const { id, status } = res.json<{ id: string; status: string }>();
+    expect(status).toBe('pending');
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/v1/suggestions',
+      headers: { authorization: `Bearer ${ADMIN_TOKEN}` },
+    });
+    expect(list.statusCode).toBe(200);
+    const saved = list.json<RouteSuggestion[]>().find((x) => x.id === id)!;
+    expect(saved).toMatchObject({
+      routeName: 'Seelampur - ISBT',
+      fareInr: 20,
+      from: { name: 'Seelampur', lat: 28.67, lng: 77.269 },
+      to: { lat: 28.668, lng: 77.228 },
+    });
+    expect(app.transit.network.routes.has('Seelampur - ISBT')).toBe(false);
+  });
+
+  it('keeps the review list private and validates input', async () => {
+    expect((await app.inject({ method: 'GET', url: '/api/v1/suggestions' })).statusCode).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/v1/suggestions',
+          headers: { authorization: `Bearer ${'x'.repeat(64)}` },
+        })
+      ).statusCode,
+    ).toBe(401);
+    for (const bad of [
+      { ...suggestion, from: undefined },
+      { ...suggestion, fareInr: -5 },
+      { ...suggestion, mode: 'WALK' },
+      { ...suggestion, note: 'x'.repeat(501) },
+    ]) {
+      expect(
+        (await app.inject({ method: 'POST', url: '/api/v1/suggestions', payload: bad })).statusCode,
+      ).toBe(400);
+    }
   });
 });

@@ -65,4 +65,35 @@ test.describe('sharing a ride', () => {
     await expect(banner).toContainText("You're not on this route's path");
     await banner.getByRole('button', { name: 'Stop' }).click();
   });
+
+  test('people waiting downstream see the shared vehicle coming, and how full it is', async ({
+    isolated: page,
+    request,
+  }) => {
+    // A rider heading south on KG-1, between Kashmere Gate and GPO, says it is full.
+    const rideId = `arrivals-${Date.now()}-rider`;
+    const share = (lat: number) =>
+      request.post(`${API}/api/v1/rides/positions`, {
+        data: {
+          rideId,
+          routeId: 'KG-1',
+          coordinates: [77.2298, lat],
+          accuracyM: 10,
+          recordedAt: new Date().toISOString(),
+          occupancy: 'full',
+        },
+      });
+    expect(await (await share(28.665)).json()).toMatchObject({ accepted: true });
+    await new Promise((r) => setTimeout(r, 3200)); // the server takes a fix every 3 s at most
+    expect(await (await share(28.6645)).json()).toMatchObject({ accepted: true });
+
+    // Someone at GPO going to Chandni Chowk Market boards KG-1 the same way.
+    await page.goto(planUrl('28.66280,77.23010,GPO', CC_MARKET));
+    const first = page.getByRole('article').first();
+    await expect(first).toContainText('KG-1');
+    await expect(first.getByText(/Next KG-1 .*min away/)).toBeVisible();
+    await expect(first.getByText('Full', { exact: true })).toBeVisible();
+    await expect(first.getByText('shared by a rider on board')).toBeVisible();
+    await request.post(`${API}/api/v1/rides/end`, { data: { rideId } });
+  });
 });

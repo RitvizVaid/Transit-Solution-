@@ -11,6 +11,7 @@ import {
   CONGESTION_LEVELS,
   LEG_MODES,
   QUEUE_LEVELS,
+  STAND_SOURCES,
   type Itinerary,
   type Leg,
   type NearbyStopsResponse,
@@ -100,9 +101,14 @@ function checkStand(s: StandStatus) {
   expect(isStr(s.standId) && isStr(s.name)).toBe(true);
   expect(s.coordinates).toHaveLength(2);
   expect(s.coordinates[0]).toBeGreaterThan(70); // [lng, lat] order
-  expect(Number.isInteger(s.availableVehiclesEstimate) && s.availableVehiclesEstimate >= 0).toBe(
-    true,
-  );
+  expect((STAND_SOURCES as readonly string[]).includes(s.source)).toBe(true);
+  const count = s.availableVehiclesEstimate;
+  expect(count === null || (Number.isInteger(count) && count >= 0)).toBe(true);
+  // Baseline values are not observations: no count, no expiry. Reports always expire.
+  const baselineOk = count === null && s.expiresAt === null;
+  const reportedOk = isIso(s.expiresAt) && isIso(s.lastReportedAt);
+  expect(s.source === 'baseline' ? baselineOk : reportedOk).toBe(true);
+  expect(s.lastReportedAt === null || isIso(s.lastReportedAt)).toBe(true);
   expect((QUEUE_LEVELS as readonly string[]).includes(s.passengerQueueLevel)).toBe(true);
   expect(isNum(s.averageWaitMinutes) && s.averageWaitMinutes > 0).toBe(true);
   expect(isIso(s.lastUpdated)).toBe(true);

@@ -3,6 +3,7 @@ import { formatDistance, formatFrequency, MODE_META } from '../lib/format';
 import type { NearbyLine } from '../lib/nearby';
 import { LocateIcon } from './icons';
 import { RouteChip } from './RouteChip';
+import { t } from '../lib/i18n';
 
 /** Sheet header for the Nearby tab: where we're searching from + radius control. */
 export function NearbyHeader({
@@ -34,7 +35,7 @@ export function NearbyHeader({
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50 disabled:opacity-60"
           >
             <LocateIcon size={16} className={locating ? 'animate-pulse' : undefined} />
-            {locating ? 'Locating…' : 'Use my location'}
+            {locating ? t('Locating…') : t('Use my location')}
           </button>
         )}
       </div>
@@ -81,7 +82,7 @@ export function NearbyList({
             onClick={onRetry}
             className="mt-3 block rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white"
           >
-            Try again
+            {t('Try again')}
           </button>
         </div>
       </div>
@@ -116,17 +117,17 @@ export function NearbyList({
               onClick={onWidenRadius}
               className="ml-1 font-semibold text-teal-800 underline underline-offset-2"
             >
-              Search wider
+              {t('Search wider')}
             </button>
           )}
         </div>
         {nearest && (
           <section
-            aria-label="Closest line"
+            aria-label={t('Closest line')}
             className="rounded-2xl bg-white p-3 ring-1 ring-slate-200"
           >
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              Closest line
+              {t('Closest line')}
             </p>
             <div className="mt-2 flex items-start gap-3">
               <RouteChip

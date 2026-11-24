@@ -39,10 +39,15 @@ test.describe('map (C2)', () => {
     await expect
       .poll(async () => (await sourceFeatures(page, 'stands')).length)
       .toBeGreaterThanOrEqual(10);
-    const colours = new Set((await sourceFeatures(page, 'stands')).map((f) => f.properties.color));
-    expect([...colours].every((c) => ['#10b981', '#f59e0b', '#e11d48'].includes(String(c)))).toBe(
-      true,
-    );
+    // Queue colours only for stands with a report in effect; grey = schedule estimate only.
+    const stands = (await sourceFeatures(page, 'stands')).map((f) => ({
+      color: String(f.properties.color),
+      source: (JSON.parse(String(f.properties.json)) as { source: string }).source,
+    }));
+    for (const s of stands) {
+      if (s.source === 'reported') expect(['#10b981', '#f59e0b', '#e11d48']).toContain(s.color);
+      else expect(s.color).toBe('#94a3b8');
+    }
 
     // Centre the Kashmere Gate stand and tap it.
     const point = await page.evaluate(async () => {
@@ -65,7 +70,8 @@ test.describe('map (C2)', () => {
     await page.mouse.click(point.x, point.y);
     const popup = page.locator('.maplibregl-popup');
     await expect(popup).toContainText('Kashmere Gate Auto Stand');
-    await expect(popup).toContainText('min wait');
+    // Either a report in effect, or the schedule estimate clearly labelled as such.
+    await expect(popup).toContainText(/min wait|Typical wait ~\d+ min \(from the schedule\)/);
   });
 
   test('2.4 live vehicles appear and move along their routes', async ({ isolated: page }) => {
