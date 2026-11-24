@@ -44,6 +44,10 @@ offline states. Do not generate imaginary itineraries to avoid an empty screen.
 | [GTFS Schedule reference](https://gtfs.org/documentation/schedule/reference/) · [GTFS Flex examples](https://gtfs.org/documentation/schedule/examples/flex/) | GTFS supports frequency-based data; Flex addresses demand-responsive service. | Choose a representation that fits the observed service and is actually supported by our parser/router; do not assume Flex is a drop-in solution for hail-and-ride. |
 | [Transit GO crowdsourcing](https://help.transitapp.com/article/91-what-is-go-crowdsourcing) | The provider describes trip-based location sharing and short crowding/accessibility feedback. | Example interaction pattern, not evidence that its results or privacy model transfer to this project or India. Start with explicit, voluntary reports; passive GPS is a separate consent and privacy decision. |
 | [WRI India: gender-responsive mobility](https://wri-india.org/initiatives/shaping-inclusive-cities-gender-responsive-mobility-systems) · [IIT Guwahati informal transport research](https://www.iitg.ac.in/iitg_press_details.php?p=0235/multi-institutional-team-led-by-iit-guwahati-develops-framework-to-strengthen-informal-transport-and-address-congestion) | WRI discusses inclusive mobility; IIT Guwahati describes a policy framework for integrating informal transport. | Inform user research and stakeholder engagement. Neither proves this app will reduce congestion or makes a route safe. |
+| [World Bank: gender-responsive mobility in India](https://blogs.worldbank.org/en/endpovertyinsouthasia/india-making-public-transport-more-women-friendly) | Describes multi-stop trips, waiting and safety concerns in the Indian context, citing specific surveys. | Research trip chaining, transfer costs and boarding experience with diverse local participants; findings are not a safety rating for a route. |
+| [W3C target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) · [contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) | WCAG 2.2 AA defines a 24×24 CSS-pixel minimum target or qualifying spacing/exceptions, and 4.5:1 normal-text contrast, with defined exceptions. | Use as accessibility acceptance references, not proof this app conforms. Test actual rendered states; aim for larger important touch controls where practical. |
+| [GTFS Realtime best practices](https://gtfs.org/documentation/realtime/realtime-best-practices/) | Recommends separate feed and observation timestamps and freshness limits for GTFS vehicle positions, trip updates and alerts. | Useful if a genuine GTFS-RT feed is integrated. These thresholds are not evidence that our human stand reports are live or suitable for the same expiry rules. |
+| [web.dev offline cookbook](https://web.dev/articles/offline-cookbook) | Describes service-worker caching and offline fallback patterns. | Guide explicit offline state and cache provenance tests; a cached response must not be silently relabeled as fresh. Browser and cache behavior must be tested here. |
 
 Source conditions can change. Check license, attribution, freshness, geographical coverage,
 privacy and API terms at the exact version before downloading, combining or publishing.
@@ -73,6 +77,26 @@ For a traffic/ETA model, first define sampling, holdout periods, corridor/time-b
 coverage and evaluation thresholds. Compare prediction error and missing-data behavior
 against the current headway baseline; do not introduce invented peak multipliers or
 promise reliable capacity estimates.
+
+## Additional product and engineering opportunities
+
+- **Service-day correctness (F-18/UI-14):** test real-world feed calendars, exceptions,
+  overnight service and multiple frequency windows before claiming an imported route
+  operates on a particular date. The current built-in loader has known limitations;
+  passing format validation alone does not demonstrate routing compatibility.
+- **Search people can trust (F-19/UI-15/UI-16):** use city-specific search bounds and
+  local landmark aliases once verified. Ensure suggestions belong to the typed query and
+  offer map picking or nearby browsing when geocoding fails. Regional-language search
+  quality must be tested, not assumed.
+- **Privacy and offline clarity (F-20/F-21):** explain storage and third-party geocoding,
+  make trip sharing deliberate, and show when cached data was last obtained. Test slow
+  connections and service-worker fallback separately from normal fetches.
+- **Inclusive journeys (F-24):** research multi-stop errands, transfer cost and boarding
+  accessibility with people of different ages, genders and abilities. Present available
+  evidence and limitations rather than unverifiable “safe route” guarantees.
+- **Disruptions (F-23):** only show closures or detours from a documented source or a
+  reviewed report, with scope, time and expiry. Empty alert lists do not establish that
+  service is operating normally.
 
 ## Making stand reports real
 

@@ -27,6 +27,8 @@ Do not promise reduced congestion without a separately designed evaluation.
   find a route; suggest only actions the system can actually perform. Separate network
   errors, cache, out-of-coverage and service-hour explanations only when supported by
   evidence from a documented API contract.
+- Resolve stale place suggestions (UI-15) and investigate cache provenance (UI-18)
+  before relying on search results or labeling saved data as fresh.
 - Acceptance: baseline/report/expiry/restart cases in server and UI tests; browser checks on
   narrow mobile and desktop, including keyboard use and no misleading live text. Record
   actual results, revisions and limits; no field verification is implied.
@@ -36,6 +38,9 @@ Do not promise reduced congestion without a separately designed evaluation.
 - Choose corridors with local operators and commuters. Survey stop names/coordinates,
   directions, operating hours, headways and fares, with collection dates and provenance
   (F-09, UI-05, UI-07). Obtain consent and minimize personal/location data.
+- Before importing external feeds, validate calendar exceptions, multiple frequency
+  windows, service-day boundaries and parser compatibility (UI-14); choose the pilot
+  city and configure its search and map consistently (UI-16).
 - Agree identity, moderation, rate limiting, report deduplication, retention and storage
   before opening reporting to the public (UI-06, UI-08). Design for unreliable networks.
 - Invite commuters to suggest missing routes and corrections (UI-10/UI-11), initially
@@ -52,6 +57,8 @@ Do not promise reduced congestion without a separately designed evaluation.
   relevant alternatives; no invented range or capacity.
 - Translate the selected flows with local review; test reading order, labels, focus, contrast,
   large text, narrow screens and limited connectivity (UI-03, UI-04).
+- Design clear trip-history and deliberate-sharing controls (UI-17), and evaluate
+  multi-stop journeys and accessible boarding with diverse commuters (F-24).
 - Acceptance: comparison ordering and ties tested on fixtures; manually review translated
   mobile and desktop journeys, accessible states and the map/list alternative.
 

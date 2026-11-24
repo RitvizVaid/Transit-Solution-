@@ -36,6 +36,13 @@ with a sample trip; that does not verify its data in the field.
 | F-15 | Boarding guidance and nearby alternatives | **Partial:** route legs and nearby lines exist; there is no verified street-level boarding or evidence-backed alternatives for every empty trip. | UI-05, UI-09, UI-13 |
 | F-16 | Measurable access and interface quality | **Partial:** responsive interface and offline building blocks exist; a complete accessible, multilingual, low-bandwidth field-tested commuter journey remains open. | UI-03, UI-04, UI-13 |
 | F-17 | Realistic traffic and reliability | **Planned:** time-band estimates and confidence calibrated against collected journey observations, with a transparent fallback when samples are inadequate. | UI-07, F-09 |
+| F-18 | Service-day and frequency accuracy | **Partial:** the built-in planner uses service-hour windows, but the [GTFS loader](../apps/server/src/gtfs/network.ts) does not load calendars and retains one frequency row per trip. Imported feeds need compatibility testing. | UI-14, F-09 |
+| F-19 | City-aware, reliable place search | **Partial:** search uses a Delhi NCR bounding box and a remote geocoder; [config](../apps/web/src/config.ts), [search hook](../apps/web/src/hooks/useGeocode.ts). Other-city search and stale-suggestion handling require work. | UI-15, UI-16 |
+| F-20 | Travel privacy and user control | **Partial:** trips are stored on-device and encoded into URLs; [recent trips](../apps/web/src/lib/recentTrips.ts), [URL encoding](../apps/web/src/lib/url.ts). Clear history, consent and location-sharing controls require a defined design. | UI-17 |
+| F-21 | Honest offline freshness | **Partial:** cached plans and network-first service-worker caching exist; the app does not explicitly identify a service-worker cache response to the hook. | UI-18, UI-03 |
+| F-22 | Trustworthy nearby guidance | **Partial:** nearby results and a closest-line fallback exist; failures of the fallback are suppressed by [nearby hook](../apps/web/src/hooks/useNearbyLines.ts). Walking and boarding feasibility are not verified. | UI-19, UI-05 |
+| F-23 | Service disruptions and changes | **Planned:** show independently sourced route closures, diversions and service interruptions with source, validity and expiry; manual reports need review and no alerts must not imply normal service. | UI-11, UI-14, F-09 |
+| F-24 | Inclusive multi-stop journey research | **Planned:** investigate costs and transfers for multi-stop trips, accessibility and safer boarding with diverse local participants. Do not rank routes as “safe” without reliable evidence. | UI-04, UI-05, UI-07 |
 
 ## Updating this register
 
