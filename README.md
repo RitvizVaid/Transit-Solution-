@@ -11,8 +11,8 @@ stand is, and watch vehicles live. Stand marshals report conditions from a one-t
 bilingual (English/Hindi) web portal that works with patchy signal.
 
 Pilot: 7 routes and 23 stops around Kashmere Gate, Old Delhi, Chandni Chowk, Red Fort,
-Daryaganj–ITO and New Delhi Railway Station–Connaught Place. Plan, roles and roadmap:
-[GAME_PLAN.md](GAME_PLAN.md). Build log: [nitish.md](nitish.md).
+Daryaganj–ITO and New Delhi Railway Station–Connaught Place. See the
+[improvement roadmap](docs/transit-improvement-roadmap.md) for planned work and roles.
 
 ## What works
 

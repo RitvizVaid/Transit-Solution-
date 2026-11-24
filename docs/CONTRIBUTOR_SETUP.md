@@ -69,8 +69,8 @@ app uses the type to review. `pnpm dev` rebuilds the package on save.
 
 ## Branches and PRs
 
-See [GAME_PLAN.md §6](../GAME_PLAN.md#6-git-branching-strategy--contribution-rules): branch
-from `dev` as `feat/c1-…`, `data/c4-…`, `infra/c5-…`; PRs need green CI and one approval.
+See the [improvement roadmap](transit-improvement-roadmap.md) and
+[contribution guide](../CONTRIBUTING.md) for branch names, PRs and integration.
 
 ## Legacy code
 

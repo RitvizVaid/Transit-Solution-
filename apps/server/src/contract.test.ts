@@ -1,9 +1,9 @@
 /**
- * GAME_PLAN §4 "Shared API contracts": every payload the API sends must match
+ * Shared API contracts: every payload the API sends must match
  * packages/shared-types at runtime, not just at compile time. These checks walk real
  * responses field by field.
  *
- * Deliberate, documented deviations from the §4 sketch (decided during the build):
+ * Contract details:
  *  - Leg.frequencyMinutes is a range { min, max } (informal headways vary), not a number.
  *  - Leg.mode adds E_RICKSHAW and SHARED_TAXI; Leg adds optional boardingStandId.
  */

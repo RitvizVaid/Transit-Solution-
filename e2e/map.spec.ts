@@ -1,7 +1,6 @@
 import { API } from './playwright.config';
 import { expect, KG_METRO, planUrl, RED_FORT, sourceFeatures, test, waitForMap } from './fixtures';
 
-/** GAME_PLAN Contributor 2: map engine, route rendering, stand markers, live vehicles, picking. */
 test.describe('map (C2)', () => {
   // The app's service worker fetches map tiles itself (cache-first), and requests made by a
   // service worker bypass page.route. Map tests run without it so the style/tile stubs apply;

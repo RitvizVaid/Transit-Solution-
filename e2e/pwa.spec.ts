@@ -1,6 +1,5 @@
 import { CC_MARKET, expect, photonRequests, planUrl, test, TIS_HAZARI, WEB } from './fixtures';
 
-/** GAME_PLAN Contributor 1 tasks that the main commuter spec doesn't already cover. */
 test.describe('commuter app (C1)', () => {
   test('1.1 phones get a draggable bottom sheet, desktops a side panel', async ({
     isolated: page,
