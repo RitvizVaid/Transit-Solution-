@@ -14,7 +14,10 @@ WebSocket) to the API container, so everything is same-origin. Put a TLS-termina
 (Caddy, Traefik, a cloud load balancer) in front of ports 8080 / 8081. **HTTPS is required**
 for geolocation, service workers and "Add to Home Screen".
 
-For a real pilot set `SIMULATE=false` so only genuine marshal reports drive stand status.
+`SIMULATE=false` disables generated reports and vehicle positions, but stand status still
+starts with schedule-based estimates and default counts. The current UI can label these
+as live; see [UI-01](ui-deficiency-register.md). Reports also lack operator identity
+and stand state is in memory. Resolve these limitations before a public field pilot.
 
 ## Option B: managed hosting
 

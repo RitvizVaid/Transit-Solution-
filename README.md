@@ -68,6 +68,11 @@ All run in CI with the Docker builds and a check that the committed GTFS matches
 
 ## Docs
 
+- [Feature register](docs/ui-feature-register.md): current capabilities and planned work
+- [UI deficiency register](docs/ui-deficiency-register.md): gaps, priorities and acceptance targets
+- [Improvement roadmap](docs/transit-improvement-roadmap.md): phases and parallel contributor work
+- [Architecture and code map](docs/transit-architecture-review.md): follow a trip or stand report
+- [Data and reporting research](docs/transit-data-reporting-research.md): sources, collection and reporting design
 - [docs/CONTRIBUTOR_SETUP.md](docs/CONTRIBUTOR_SETUP.md): setup, commands, where code lives
 - [docs/API_SPEC.md](docs/API_SPEC.md): HTTP + WebSocket contract
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): Docker, managed hosting, OTP, stand QR codes

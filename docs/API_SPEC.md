@@ -45,7 +45,9 @@ Up to 3 itineraries, fastest expected time first, at most one transfer.
   walks are straight lines (built-in planner) or street paths (OTP).
 
 Errors: **400** for missing/out-of-range coordinates or an unparseable `departAt`.
-An empty `itineraries` array means no route serves the trip at that time.
+An empty `itineraries` array means the configured planner found no itinerary for the
+request. It does not establish that no real-world service exists. The response does
+not currently distinguish limited coverage, service hours or other search constraints.
 
 ## Network
 
