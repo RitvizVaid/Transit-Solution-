@@ -3,6 +3,7 @@ import { DEFAULT_ROUTE_COLOR, readableTextColor } from '../lib/color';
 import { formatDistance, formatDuration, formatFrequency, MODE_META } from '../lib/format';
 import { ModeIcon, PinIcon } from './icons';
 import { LiveArrivalBadge } from './LiveArrivalBadge';
+import { ShareRideButton } from './RideShare';
 
 /** Step-by-step view of an itinerary: walk, board, ride, get off, arrive. */
 export function LegTimeline({ legs }: { legs: Leg[] }) {
@@ -78,6 +79,7 @@ function LegStep({ leg }: { leg: Leg }) {
             <div className="mt-1.5">
               <LiveArrivalBadge leg={leg} detailed />
             </div>
+            <ShareRideButton leg={leg} />
           </>
         )}
       </div>

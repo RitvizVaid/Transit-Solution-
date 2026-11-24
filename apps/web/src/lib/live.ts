@@ -33,6 +33,7 @@ class LiveConnection {
   private bbox: BBox | null = null;
   private readonly standListeners = new Set<Listener<StandStatus>>();
   private readonly vehicleListeners = new Set<Listener<VehiclePosition>>();
+  private readonly removedListeners = new Set<Listener<string>>();
   private readonly openListeners = new Set<Listener<boolean>>();
   private wanted = 0;
 
@@ -69,6 +70,8 @@ class LiveConnection {
       if (msg.type === 'stand.status') this.standListeners.forEach((l) => l(msg.payload));
       else if (msg.type === 'vehicle.position')
         this.vehicleListeners.forEach((l) => l(msg.payload));
+      else if (msg.type === 'vehicle.removed')
+        this.removedListeners.forEach((l) => l(msg.payload.vehicleId));
     };
     ws.onclose = () => {
       this.ws = null;
@@ -114,6 +117,12 @@ class LiveConnection {
   onVehicle(l: Listener<VehiclePosition>) {
     this.vehicleListeners.add(l);
     return () => void this.vehicleListeners.delete(l);
+  }
+
+  /** A vehicle left the map (its rider stopped sharing). */
+  onVehicleRemoved(l: Listener<string>) {
+    this.removedListeners.add(l);
+    return () => void this.removedListeners.delete(l);
   }
 
   onOpenChange(l: Listener<boolean>) {

@@ -12,7 +12,18 @@ export interface QueuedReport {
 }
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
-type Send = (r: StandReport) => Promise<'ok' | 'retry' | 'drop'>;
+export type SendResult =
+  | { status: 'ok' }
+  | { status: 'retry' }
+  | { status: 'drop'; reason: 'authorization' | 'expired' | 'rejected' };
+type Send = (r: StandReport) => Promise<SendResult>;
+
+export interface FlushResult {
+  deliveredIds: string[];
+  rejectedIds: string[];
+  expiredIds: string[];
+  authorizationFailed: boolean;
+}
 
 const KEY = 'driver.reportQueue.v1';
 /** Older reports are useless for live status; don't replay them. */
@@ -27,58 +38,82 @@ export class ReportQueue {
     private readonly now: () => number = Date.now,
   ) {}
 
-  list(): QueuedReport[] {
+  list(standId?: string): QueuedReport[] {
     try {
       const parsed: unknown = JSON.parse(this.store?.getItem(KEY) ?? '[]');
-      return Array.isArray(parsed) ? (parsed as QueuedReport[]) : [];
+      const reports = Array.isArray(parsed) ? (parsed as QueuedReport[]) : [];
+      return standId ? reports.filter((item) => item.report.standId === standId) : reports;
     } catch {
       return [];
     }
   }
 
-  private save(items: QueuedReport[]) {
+  private save(items: QueuedReport[]): boolean {
     try {
       this.store?.setItem(KEY, JSON.stringify(items.slice(-MAX_QUEUE)));
+      return this.store !== null;
     } catch {
-      /* storage full or disabled: the in-flight send still happens */
+      return false;
     }
   }
 
-  enqueue(report: StandReport): QueuedReport {
+  enqueue(report: StandReport): { item: QueuedReport; persisted: boolean } {
     const item = {
-      id: `${this.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: report.reportId,
       report,
       attempts: 0,
     };
-    this.save([...this.list(), item]);
-    return item;
+    return { item, persisted: this.save([...this.list(), item]) };
   }
 
   /**
-   * Sends queued reports oldest first. Stops at the first retryable failure (still
-   * offline), drops reports the server rejects or that are too old. Returns how many
-   * were delivered.
+   * Sends this stand's reports oldest first. Other stands remain queued because their
+   * credentials are separate. Stops at the first retryable failure.
    */
-  async flush(send: Send): Promise<number> {
-    if (this.flushing) return 0;
+  async flush(send: Send, standId: string): Promise<FlushResult> {
+    const empty = (): FlushResult => ({
+      deliveredIds: [],
+      rejectedIds: [],
+      expiredIds: [],
+      authorizationFailed: false,
+    });
+    if (this.flushing) return empty();
     this.flushing = true;
-    let delivered = 0;
     try {
-      let items = this.list().filter(
-        (i) => this.now() - Date.parse(i.report.reportedAt) < MAX_AGE_MS,
-      );
-      while (items.length) {
-        const [head, ...rest] = items as [QueuedReport, ...QueuedReport[]];
-        const result = await send(head.report).catch(() => 'retry' as const);
-        if (result === 'retry') {
-          items = [{ ...head, attempts: head.attempts + 1 }, ...rest];
+      const all = this.list();
+      const result = empty();
+      const remaining: QueuedReport[] = [];
+      const active = all.filter((item) => item.report.standId === standId);
+      for (const item of all) {
+        if (item.report.standId !== standId) remaining.push(item);
+      }
+
+      const fresh = active.filter((item) => {
+        if (this.now() - Date.parse(item.report.reportedAt) < MAX_AGE_MS) return true;
+        result.expiredIds.push(item.id);
+        return false;
+      });
+
+      for (let index = 0; index < fresh.length; index++) {
+        const item = fresh[index]!;
+        const outcome = await send(item.report).catch((): SendResult => ({ status: 'retry' }));
+        if (outcome.status === 'retry') {
+          remaining.push({ ...item, attempts: item.attempts + 1 }, ...fresh.slice(index + 1));
           break;
         }
-        if (result === 'ok') delivered += 1;
-        items = rest;
+        if (outcome.status === 'ok') result.deliveredIds.push(item.id);
+        else if (outcome.reason === 'authorization') {
+          result.authorizationFailed = true;
+          remaining.push(item, ...fresh.slice(index + 1));
+          break;
+        } else if (outcome.reason === 'expired') result.expiredIds.push(item.id);
+        else {
+          result.rejectedIds.push(item.id);
+        }
       }
-      this.save(items);
-      return delivered;
+
+      this.save(remaining);
+      return result;
     } finally {
       this.flushing = false;
     }

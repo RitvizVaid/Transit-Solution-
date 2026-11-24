@@ -93,7 +93,12 @@ describe('Planner (built-in)', () => {
     const before = live.plan(PLACES.kgMetro, PLACES.ccMarket, { departAt: MORNING })
       .itineraries[0]!;
     for (let i = 0; i < 2; i++) {
-      stands.apply({ standId: 'kg-auto-1', kind: 'STAND_FULL', reportedAt: MORNING.toISOString() });
+      stands.apply({
+        reportId: `planner-full-${i}`,
+        standId: 'kg-auto-1',
+        kind: 'STAND_FULL',
+        reportedAt: MORNING.toISOString(),
+      });
     }
     const after = live
       .plan(PLACES.kgMetro, PLACES.ccMarket, { departAt: MORNING })

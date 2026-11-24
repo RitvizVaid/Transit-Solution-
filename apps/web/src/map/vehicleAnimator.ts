@@ -50,6 +50,10 @@ export class VehicleAnimator {
     return out;
   }
 
+  remove(vehicleId: string): void {
+    this.tracks.delete(vehicleId);
+  }
+
   clear(): void {
     this.tracks.clear();
   }

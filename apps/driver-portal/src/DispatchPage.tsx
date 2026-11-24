@@ -1,9 +1,20 @@
 import type { PassengerQueueLevel, ReportKind, StandStatus } from '@transit/shared-types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchStands, sendReport, watchStand } from './api';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { authorizeReportToken, fetchStands, sendReport, watchStand } from './api';
 import { ReportQueue } from './reportQueue';
 
 const STAND_KEY = 'driver.standId.v1';
+
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+
+const isOnline = () => navigator.onLine;
 
 interface Action {
   kind: ReportKind;
@@ -167,52 +178,78 @@ function Reporter({
   const queue = useMemo(() => new ReportQueue(safeStorage()), []);
   const [liveStatus, setStatus] = useState<StandStatus | null>(null);
   const status = liveStatus ?? initial;
-  const [pending, setPending] = useState(() => queue.list().length);
+  const [pending, setPending] = useState(() => queue.list(standId).length);
   const [flash, setFlash] = useState<string | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
-  const [online, setOnline] = useState(navigator.onLine);
+  const online = useSyncExternalStore(subscribeOnline, isOnline, () => true);
+  const [token, setToken] = useState('');
+  const [authorized, setAuthorized] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => watchStand(standId, setStatus), [standId]);
 
   const flush = useCallback(async () => {
-    const delivered = await queue.flush(sendReport);
-    setPending(queue.list().length);
-    return delivered;
-  }, [queue]);
+    if (!token) return null;
+    const result = await queue.flush((report) => sendReport(report, token), standId);
+    setPending(queue.list(standId).length);
+    if (result.authorizationFailed) {
+      setAuthorized(false);
+      setToken('');
+      setAuthError('This stand code is no longer valid. Enter a current code.');
+    }
+    return result;
+  }, [queue, standId, token]);
 
   useEffect(() => {
-    const on = () => {
-      setOnline(true);
-      void flush();
-    };
-    const off = () => setOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
+    if (!authorized || !token) return;
     const timer = setInterval(() => void flush(), 15_000);
-    // Sending the outbox on open is synchronising with an external system (the API);
-    // the state update happens after the network round-trip, not synchronously.
-    // oxlint-disable-next-line react/set-state-in-effect
-    void flush();
+    const initialFlush = online ? setTimeout(() => void flush(), 0) : undefined;
     return () => {
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', off);
       clearInterval(timer);
+      if (initialFlush) clearTimeout(initialFlush);
     };
-  }, [flush]);
+  }, [authorized, flush, online, token]);
+
+  const unlock = async () => {
+    if (!token.trim() || busy !== null) return;
+    setBusy(-1);
+    setAuthError(null);
+    const result = await authorizeReportToken(standId, token.trim());
+    if (result === 'ok') {
+      setAuthorized(true);
+      setToken(token.trim());
+    } else {
+      setAuthError(
+        result === 'invalid'
+          ? 'That code is not valid for this stand.'
+          : 'Could not verify the code. Check your connection and try again.',
+      );
+    }
+    setBusy(null);
+  };
 
   const report = async (action: Action, index: number) => {
-    if (busy !== null) return;
+    if (busy !== null || !authorized) return;
     setBusy(index);
     navigator.vibrate?.(30);
-    queue.enqueue({
+    const { item, persisted } = queue.enqueue({
+      reportId: crypto.randomUUID(),
       standId,
       kind: action.kind,
       passengerCount: action.passengerCount,
       reportedAt: new Date().toISOString(),
     });
-    setPending(queue.list().length);
-    const delivered = await flush();
-    setFlash(delivered > 0 ? `Sent: ${action.label}` : 'Saved. Will send when online.');
+    setPending(queue.list(standId).length);
+    const result = await flush();
+    if (result?.deliveredIds.includes(item.id)) setFlash(`Sent: ${action.label}`);
+    else if (result?.expiredIds.includes(item.id))
+      setFlash('This report expired before it could be sent. Please report the current condition.');
+    else if (result?.rejectedIds.includes(item.id))
+      setFlash('The server rejected this report. Please check the stand and try again.');
+    else if (result?.authorizationFailed)
+      setFlash('Stand code expired. Enter a current code before reporting again.');
+    else if (!persisted) setFlash('Could not save this report. Reconnect and submit it again.');
+    else setFlash('Saved on this device. Will send when connected.');
     // Short lock so one tap = one report, even with shaky hands.
     setTimeout(() => setBusy(null), 1500);
     setTimeout(() => setFlash(null), 3000);
@@ -260,35 +297,78 @@ function Reporter({
         </section>
       )}
 
-      {(!online || pending > 0) && (
-        <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          {!online ? 'Offline. ' : ''}
-          {pending > 0
-            ? `${pending} report${pending > 1 ? 's' : ''} waiting to send.`
-            : 'Reports will be saved.'}
-        </p>
-      )}
-
-      <div className="mt-4 grid flex-1 content-start gap-3">
-        {ACTIONS.map((a, i) => (
+      {!authorized ? (
+        <form
+          className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void unlock();
+          }}
+        >
+          <label className="block text-sm font-semibold text-slate-800" htmlFor="stand-token">
+            Stand reporting code
+          </label>
+          <input
+            id="stand-token"
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+            className="h-12 w-full rounded-xl bg-white px-3 text-[16px] ring-1 ring-slate-300 focus:ring-2 focus:ring-teal-700 focus:outline-none"
+            required
+          />
+          {authError && (
+            <p role="alert" className="text-sm text-rose-800">
+              {authError}
+            </p>
+          )}
           <button
-            key={a.label}
-            type="button"
-            onClick={() => void report(a, i)}
-            disabled={busy !== null}
-            className={`min-h-20 rounded-2xl px-5 py-4 text-left shadow-sm transition active:scale-[0.98] disabled:opacity-60 ${a.className}`}
+            type="submit"
+            disabled={busy !== null || !token.trim()}
+            className="min-h-12 w-full rounded-xl bg-teal-700 px-4 py-2 font-semibold text-white disabled:opacity-60"
           >
-            <span className="block text-xl font-bold">{a.label}</span>
-            <span className="block text-base opacity-90" lang="hi">
-              {a.hindi}
-            </span>
+            {busy === -1 ? 'Verifying…' : 'Verify stand code'}
           </button>
-        ))}
-      </div>
+          <p className="text-xs text-slate-600">
+            Ask your stand coordinator for the private reporting code. Do not share it.
+          </p>
+        </form>
+      ) : (
+        <>
+          {(!online || pending > 0) && (
+            <p
+              role="status"
+              className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950"
+            >
+              {!online ? 'Offline. ' : ''}
+              {pending > 0
+                ? `${pending} report${pending > 1 ? 's' : ''} waiting to send.`
+                : 'Reports will be saved.'}
+            </p>
+          )}
 
-      <p aria-live="polite" className="mt-4 min-h-6 text-center font-semibold text-slate-800">
-        {flash}
-      </p>
+          <div className="mt-4 grid flex-1 content-start gap-3">
+            {ACTIONS.map((a, i) => (
+              <button
+                key={a.label}
+                type="button"
+                onClick={() => void report(a, i)}
+                disabled={busy !== null}
+                className={`min-h-20 rounded-2xl px-5 py-4 text-left shadow-sm transition active:scale-[0.98] disabled:opacity-60 ${a.className}`}
+              >
+                <span className="block text-xl font-bold">{a.label}</span>
+                <span className="block text-base opacity-90" lang="hi">
+                  {a.hindi}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <p aria-live="polite" className="mt-4 min-h-6 text-center font-semibold text-slate-800">
+            {flash}
+          </p>
+        </>
+      )}
     </>
   );
 }

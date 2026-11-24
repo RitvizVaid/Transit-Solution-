@@ -24,8 +24,13 @@ services:
       SIMULATE: ${SIMULATE:-true}
       # Empty = built-in planner. With the otp profile: http://otp:8080 (falls back if OTP is down).
       OTP_URL: ${OTP_URL:-}
+      # JSON object mapping stand IDs to private tokens; see docs/DEPLOYMENT.md.
+      REPORT_TOKENS_JSON: ${REPORT_TOKENS_JSON:-}
+      REPORT_DB_PATH: /app/state/reports.sqlite
     ports:
       - '${SERVER_PORT:-3000}:3000'
+    volumes:
+      - transit-state:/app/state
 
   web:
     build:
@@ -60,3 +65,6 @@ services:
       - ./otp:/var/opentripplanner
     ports:
       - '${OTP_PORT:-8082}:8080'
+
+volumes:
+  transit-state:

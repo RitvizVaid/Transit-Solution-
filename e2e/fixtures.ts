@@ -1,5 +1,6 @@
 import { test as base, type Page } from '@playwright/test';
 import { PORTS } from './playwright.config';
+export { REPORT_TOKENS } from './reportTokens';
 
 export const WEB = `http://localhost:${PORTS.web}`;
 export const DRIVER = `http://localhost:${PORTS.driver}`;
@@ -8,7 +9,6 @@ export const KG_METRO = '28.66750,77.22820,Kashmere Gate Metro';
 export const CC_MARKET = '28.65550,77.23000,Chandni Chowk Market';
 export const RED_FORT = '28.65630,77.24120,Red Fort';
 export const TIS_HAZARI = '28.66720,77.21650,Tis Hazari';
-
 export const planUrl = (from: string, to?: string, extra = '') =>
   `${WEB}/?from=${encodeURIComponent(from)}${to ? `&to=${encodeURIComponent(to)}` : ''}${extra}`;
 

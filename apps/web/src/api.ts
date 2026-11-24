@@ -3,6 +3,8 @@ import type {
   NearestLineResponse,
   PlanRequest,
   PlanResponse,
+  RidePosition,
+  RidePositionResponse,
   StandStatus,
   TransitRoute,
 } from '@transit/shared-types';
@@ -57,4 +59,25 @@ export function fetchRoutes(): Promise<TransitRoute[]> {
     throw err;
   });
   return routesPromise;
+}
+
+/** Crowd ride sharing: send where the vehicle the commuter is riding is now. */
+export async function postRidePosition(pos: RidePosition): Promise<RidePositionResponse> {
+  const res = await fetch(`${config.apiBase}/api/v1/rides/positions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(pos),
+  });
+  if (!res.ok) throw new ApiError(res.status, '/api/v1/rides/positions');
+  return (await res.json()) as RidePositionResponse;
+}
+
+export async function endRide(rideId: string): Promise<void> {
+  const res = await fetch(`${config.apiBase}/api/v1/rides/end`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ rideId }),
+    keepalive: true,
+  });
+  if (!res.ok) throw new ApiError(res.status, '/api/v1/rides/end');
 }

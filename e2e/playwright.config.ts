@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { REPORT_TOKENS } from './reportTokens';
 
 /**
  * End-to-end tests against the production builds (`pnpm build` first).
@@ -43,6 +44,8 @@ export default defineConfig({
         SIMULATE_VEHICLES: 'true',
         SIMULATE_REPORTS: 'false',
         DEMO_TIME_OF_DAY: '10:00',
+        REPORT_TOKENS_JSON: JSON.stringify(REPORT_TOKENS),
+        REPORT_DB_PATH: ':memory:',
       },
       reuseExistingServer: false,
     },

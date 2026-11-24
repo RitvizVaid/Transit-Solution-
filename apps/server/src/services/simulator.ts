@@ -48,6 +48,7 @@ export function simulatedPositions(net: TransitNetwork, at: Date): VehiclePositi
         bearing: Math.round(bearing),
         speedKmh: span > 0 ? Math.round(((b.distM - a.distM) / span) * 3.6) : 0,
         timestamp: at.toISOString(),
+        source: 'simulated',
       });
     }
   }

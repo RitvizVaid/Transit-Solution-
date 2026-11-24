@@ -9,6 +9,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
       routes: network.routes.size,
       stops: network.stops.size,
       planner: config.otpUrl ? 'otp+builtin' : 'builtin',
+      reportingConfigured: Object.keys(config.reportTokenHashes).length > 0,
       simulate: { vehicles: config.simulateVehicles, reports: config.simulateReports },
       demoTimeOfDay: config.demoTimeOfDay ?? null,
       liveClients: hub.size,

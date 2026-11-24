@@ -2,18 +2,32 @@ import type {
   NearbyStopsResponse,
   NearestLineResponse,
   PlanResponse,
+  RidePositionResponse,
   ServerMessage,
   StandStatus,
   TransitRoute,
 } from '@transit/shared-types';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app.js';
 import { GTFS_DIR } from './test/fixtures.js';
 import { LiveHub } from './websocket/hub.js';
 
+const REPORT_TOKEN = 'a'.repeat(64);
+const RF_REPORT_TOKEN = 'b'.repeat(64);
+const MISSING_STAND_TOKEN = 'c'.repeat(64);
 const app = await buildApp({
   config: {
     gtfsDir: GTFS_DIR,
+    reportDbPath: ':memory:',
+    reportTokenHashes: {
+      'odrs-1': createHash('sha256').update(REPORT_TOKEN).digest('hex'),
+      'rf-1': createHash('sha256').update(RF_REPORT_TOKEN).digest('hex'),
+      nope: createHash('sha256').update(MISSING_STAND_TOKEN).digest('hex'),
+    },
     simulateVehicles: false,
     simulateReports: false,
     otpUrl: undefined,
@@ -23,6 +37,53 @@ const app = await buildApp({
 afterAll(() => app.close());
 
 describe('HTTP API', () => {
+  it('restores recent accepted reports after an API restart', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'transit-reports-'));
+    const reportDbPath = join(directory, 'reports.sqlite');
+    const config = {
+      gtfsDir: GTFS_DIR,
+      reportDbPath,
+      reportTokenHashes: {
+        'odrs-1': createHash('sha256').update(REPORT_TOKEN).digest('hex'),
+      },
+      simulateVehicles: false,
+      simulateReports: false,
+      otpUrl: undefined,
+      demoTimeOfDay: '10:00',
+    };
+    try {
+      const first = await buildApp({ config });
+      try {
+        const report = await first.inject({
+          method: 'POST',
+          url: '/api/v1/telemetry/reports',
+          payload: {
+            reportId: 'restart-report-1',
+            standId: 'odrs-1',
+            kind: 'STAND_FULL',
+            passengerCount: 20,
+            reportedAt: new Date().toISOString(),
+          },
+          headers: { authorization: `Bearer ${REPORT_TOKEN}` },
+        });
+        expect(report.statusCode).toBe(202);
+      } finally {
+        await first.close();
+      }
+
+      const restarted = await buildApp({ config });
+      try {
+        expect(
+          (await restarted.inject({ method: 'GET', url: '/api/v1/stands/odrs-1' })).json(),
+        ).toMatchObject({ passengerQueueLevel: 'severe', availableVehiclesEstimate: 0 });
+      } finally {
+        await restarted.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('reports health with feed details', async () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
@@ -82,11 +143,13 @@ describe('HTTP API', () => {
       method: 'POST',
       url: '/api/v1/telemetry/reports',
       payload: {
+        reportId: 'odrs-full-1',
         standId: 'odrs-1',
         kind: 'STAND_FULL',
         passengerCount: 25,
         reportedAt: new Date().toISOString(),
       },
+      headers: { authorization: `Bearer ${REPORT_TOKEN}` },
     });
     expect(ok.statusCode).toBe(202);
     expect(ok.json().stand.passengerQueueLevel).toBe('severe');
@@ -98,15 +161,128 @@ describe('HTTP API', () => {
     const unknown = await app.inject({
       method: 'POST',
       url: '/api/v1/telemetry/reports',
-      payload: { standId: 'nope', kind: 'STAND_FULL', reportedAt: new Date().toISOString() },
+      payload: {
+        reportId: 'unknown-stand-1',
+        standId: 'nope',
+        kind: 'STAND_FULL',
+        reportedAt: new Date().toISOString(),
+      },
+      headers: { authorization: `Bearer ${MISSING_STAND_TOKEN}` },
     });
     expect(unknown.statusCode).toBe(404);
     const bad = await app.inject({
       method: 'POST',
       url: '/api/v1/telemetry/reports',
-      payload: { standId: 'odrs-1', kind: 'NOPE', reportedAt: new Date().toISOString() },
+      payload: {
+        reportId: 'invalid-kind-1',
+        standId: 'odrs-1',
+        kind: 'NOPE',
+        reportedAt: new Date().toISOString(),
+      },
+      headers: { authorization: `Bearer ${REPORT_TOKEN}` },
     });
     expect(bad.statusCode).toBe(400);
+  });
+
+  it('requires a valid per-stand token and returns a specific submission outcome', async () => {
+    const url = '/api/v1/telemetry/reports';
+    const payload = {
+      reportId: 'auth-check-1',
+      standId: 'odrs-1',
+      kind: 'STAND_EMPTY',
+      reportedAt: new Date().toISOString(),
+    };
+    expect((await app.inject({ method: 'POST', url, payload })).statusCode).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url,
+          payload,
+          headers: { authorization: 'Bearer invalid' },
+        })
+      ).statusCode,
+    ).toBe(401);
+
+    const wrongStand = await app.inject({
+      method: 'POST',
+      url,
+      payload,
+      headers: { authorization: `Bearer ${RF_REPORT_TOKEN}` },
+    });
+    expect(wrongStand.statusCode).toBe(403);
+
+    const session = await app.inject({
+      method: 'POST',
+      url: '/api/v1/telemetry/session',
+      headers: { authorization: `Bearer ${REPORT_TOKEN}` },
+    });
+    expect(session.statusCode).toBe(200);
+    expect(session.json()).toEqual({ standId: 'odrs-1' });
+  });
+
+  it('deduplicates retries and rejects out-of-order and expired observations', async () => {
+    const url = '/api/v1/telemetry/reports';
+    const headers = { authorization: `Bearer ${REPORT_TOKEN}` };
+    const reportedAt = new Date().toISOString();
+    const report = {
+      reportId: 'idempotent-1',
+      standId: 'odrs-1',
+      kind: 'STAND_EMPTY',
+      reportedAt,
+    };
+    const first = await app.inject({ method: 'POST', url, payload: report, headers });
+    expect(first.statusCode).toBe(202);
+    expect(first.json().duplicate).toBe(false);
+    const duplicate = await app.inject({ method: 'POST', url, payload: report, headers });
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json().duplicate).toBe(true);
+
+    const future = {
+      ...report,
+      reportId: 'future-idempotent-1',
+      reportedAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    };
+    const futureFirst = await app.inject({ method: 'POST', url, payload: future, headers });
+    expect(futureFirst.statusCode).toBe(202);
+    const futureRetry = await app.inject({ method: 'POST', url, payload: future, headers });
+    expect(futureRetry.statusCode).toBe(200);
+    expect(futureRetry.json().duplicate).toBe(true);
+
+    const conflict = await app.inject({
+      method: 'POST',
+      url,
+      payload: { ...report, kind: 'STAND_FULL' },
+      headers,
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error).toBe('report_id_conflict');
+
+    const old = await app.inject({
+      method: 'POST',
+      url,
+      payload: {
+        ...report,
+        reportId: 'idempotent-old',
+        reportedAt: new Date(Date.now() - 60_000).toISOString(),
+      },
+      headers,
+    });
+    expect(old.statusCode).toBe(409);
+    expect(old.json().error).toBe('report_out_of_order');
+
+    const expired = await app.inject({
+      method: 'POST',
+      url,
+      payload: {
+        ...report,
+        reportId: 'idempotent-expired',
+        reportedAt: new Date(Date.now() - 31 * 60_000).toISOString(),
+      },
+      headers,
+    });
+    expect(expired.statusCode).toBe(410);
+    expect(expired.json().error).toBe('report_expired');
   });
 
   it('publishes an OpenAPI document', async () => {
@@ -134,7 +310,13 @@ describe('WebSocket /api/v1/live', () => {
     await app.inject({
       method: 'POST',
       url: '/api/v1/telemetry/reports',
-      payload: { standId: 'rf-1', kind: 'STAND_EMPTY', reportedAt: new Date().toISOString() },
+      payload: {
+        reportId: 'ws-report-1',
+        standId: 'rf-1',
+        kind: 'STAND_EMPTY',
+        reportedAt: new Date().toISOString(),
+      },
+      headers: { authorization: `Bearer ${RF_REPORT_TOKEN}` },
     });
     await waitFor(() => messages.length > 1);
     expect(messages[1]).toMatchObject({
@@ -222,5 +404,90 @@ describe('C2.5 snapping to the nearest corridor', () => {
     expect(
       (await app.inject({ method: 'GET', url: '/api/v1/routes/nearest?lat=200&lng=1' })).statusCode,
     ).toBe(400);
+  });
+});
+
+describe('Crowd-shared rides', () => {
+  const ride = (rideId: string, coordinates: [number, number], extra: object = {}) => ({
+    method: 'POST' as const,
+    url: '/api/v1/rides/positions',
+    payload: {
+      rideId,
+      routeId: 'KG-1',
+      coordinates,
+      accuracyM: 12,
+      recordedAt: new Date().toISOString(),
+      ...extra,
+    },
+  });
+  // On KG-1 between GPO and Chandni Chowk Metro (see the snapping tests above).
+  const ON_KG1: [number, number] = [77.2302, 28.66];
+
+  it('broadcasts a rider as a crowd vehicle and removes it when they stop', async () => {
+    const ws = await app.injectWS('/api/v1/live');
+    const messages: ServerMessage[] = [];
+    ws.on('message', (d: Buffer) => messages.push(JSON.parse(d.toString()) as ServerMessage));
+    const waitFor = async (pred: () => boolean) => {
+      for (let i = 0; i < 50 && !pred(); i++) await new Promise((r) => setTimeout(r, 10));
+    };
+    ws.send(JSON.stringify({ type: 'subscribe.bbox', bbox: [77.2, 28.62, 77.26, 28.69] }));
+    await waitFor(() => messages.some((m) => m.type === 'stand.status'));
+
+    const rideId = 'ws-ride-0123456789';
+    const res = await app.inject(ride(rideId, ON_KG1));
+    expect(res.statusCode).toBe(200);
+    const body = res.json<RidePositionResponse>();
+    expect(body).toMatchObject({ accepted: true });
+    if (!body.accepted) return;
+    expect(JSON.stringify(body)).not.toContain(rideId);
+
+    const isVehicle = (m: ServerMessage) =>
+      m.type === 'vehicle.position' && m.payload.vehicleId === body.vehicleId;
+    await waitFor(() => messages.some(isVehicle));
+    expect(messages.find(isVehicle)).toMatchObject({
+      payload: { routeId: 'KG-1', source: 'crowd' },
+    });
+
+    const end = await app.inject({ method: 'POST', url: '/api/v1/rides/end', payload: { rideId } });
+    expect(end.statusCode).toBe(204);
+    await waitFor(() => messages.some((m) => m.type === 'vehicle.removed'));
+    expect(messages.find((m) => m.type === 'vehicle.removed')).toEqual({
+      type: 'vehicle.removed',
+      payload: { vehicleId: body.vehicleId },
+    });
+    ws.terminate();
+  });
+
+  it('answers rejected fixes with a reason, not an error', async () => {
+    const res = await app.inject(ride('far-ride-0123456789', [77.0266, 28.4595]));
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ accepted: false, reason: 'off_route' });
+  });
+
+  it('validates the request body', async () => {
+    for (const bad of [
+      ride('short', ON_KG1),
+      ride('bad-coords-0123456789', [200, 28.66] as [number, number]),
+      ride('bad-time-0123456789', ON_KG1, { recordedAt: 'yesterday' }),
+    ]) {
+      expect((await app.inject(bad)).statusCode).toBe(400);
+    }
+    // Unknown fields are stripped by the schema (Fastify removeAdditional), never kept.
+    const extra = await app.inject(ride('extra-prop-0123456789', ON_KG1, { phoneNumber: '123' }));
+    expect(extra.statusCode).toBe(200);
+    expect(extra.body).not.toContain('123');
+  });
+
+  it('returns routeId on transit legs so riders can share the right route', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/plan?fromLat=28.6675&fromLng=77.2282&toLat=28.6555&toLng=77.23',
+    });
+    const rides = res
+      .json<PlanResponse>()
+      .itineraries.flatMap((i) => i.legs)
+      .filter((l) => l.mode !== 'WALK');
+    expect(rides.length).toBeGreaterThan(0);
+    for (const leg of rides) expect(leg.routeId).toBeTruthy();
   });
 });

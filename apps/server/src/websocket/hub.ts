@@ -91,6 +91,23 @@ export class LiveHub {
     }
   }
 
+  /** One vehicle moved (e.g. a rider's phone reported); sent at once, not on the next tick. */
+  publishVehicle(v: VehiclePosition) {
+    this.vehicles = [...this.vehicles.filter((x) => x.vehicleId !== v.vehicleId), v];
+    for (const c of this.clients) {
+      if (c.bbox && inBox(v.coordinates, c.bbox))
+        this.send(c, { type: 'vehicle.position', payload: v });
+    }
+  }
+
+  removeVehicle(vehicleId: string) {
+    this.vehicles = this.vehicles.filter((v) => v.vehicleId !== vehicleId);
+    for (const c of this.clients) {
+      if (c.bbox) this.send(c, { type: 'vehicle.removed', payload: { vehicleId } });
+    }
+  }
+
+  /** Replaces the full vehicle snapshot (sent to new subscribers) and pushes it. */
   publishVehicles(positions: VehiclePosition[]) {
     this.vehicles = positions;
     for (const c of this.clients) {

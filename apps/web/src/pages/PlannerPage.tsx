@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { InstallBanner, OfflineBanner } from '../components/Banners';
 import { BottomSheet, type Snap } from '../components/BottomSheet';
 import { NearbyHeader, NearbyList } from '../components/NearbyLines';
+import { RideShareBanner } from '../components/RideShare';
 import { SearchPanel } from '../components/SearchPanel';
 import { TripResults } from '../components/TripResults';
 import { config } from '../config';
@@ -197,6 +198,9 @@ export function PlannerPage() {
             Transit <span className="font-normal text-slate-500">· Delhi pilot</span>
           </p>
         )}
+        <div className="max-w-md">
+          <RideShareBanner />
+        </div>
       </div>
 
       <BottomSheet snap={snap} onSnapChange={setSnap} header={header} label="Trip planner">

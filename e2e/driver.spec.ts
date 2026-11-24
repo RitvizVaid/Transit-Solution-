@@ -4,16 +4,25 @@ interface StandStatus {
   lastUpdated: string;
 }
 import { API } from './playwright.config';
-import { DRIVER, expect, test } from './fixtures';
+import { DRIVER, expect, REPORT_TOKENS, test } from './fixtures';
 
 const standStatus = async (request: import('@playwright/test').APIRequestContext, id: string) =>
   (await (await request.get(`${API}/api/v1/stands/${id}`)).json()) as StandStatus;
+
+const authorize = async (
+  page: import('@playwright/test').Page,
+  standId: keyof typeof REPORT_TOKENS,
+) => {
+  await page.getByLabel('Stand reporting code').fill(REPORT_TOKENS[standId]);
+  await page.getByRole('button', { name: 'Verify stand code' }).click();
+};
 
 test.describe('driver / marshal portal', () => {
   test('pick a stand from the list and report a crowd', async ({ page, request }) => {
     await page.goto(DRIVER);
     await page.getByRole('button', { name: 'Old Delhi Railway Station' }).click();
     await expect(page).toHaveURL(/stand=odrs-1/);
+    await authorize(page, 'odrs-1');
     await page.getByRole('button', { name: /20\+ people waiting/ }).click();
     await expect(page.getByText('Sent: 20+ people waiting')).toBeVisible();
     await expect
@@ -30,11 +39,12 @@ test.describe('driver / marshal portal', () => {
   }) => {
     await page.goto(`${DRIVER}/?stand=jama-masjid-g1`);
     await expect(page.getByRole('heading', { name: 'Jama Masjid Gate 1' })).toBeVisible();
+    await authorize(page, 'jama-masjid-g1');
     const before = await standStatus(request, 'jama-masjid-g1');
 
     await context.setOffline(true);
     await page.getByRole('button', { name: /No passengers/ }).click();
-    await expect(page.getByText('Saved. Will send when online.')).toBeVisible();
+    await expect(page.getByText('Saved on this device. Will send when connected.')).toBeVisible();
     await expect(page.getByText('1 report waiting to send.')).toBeVisible();
 
     await context.setOffline(false);

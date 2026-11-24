@@ -422,6 +422,7 @@ export class Planner {
       waitSec += r.waitSec;
       legs.push({
         mode: r.route.mode,
+        routeId: r.route.id,
         routeShortName: r.route.shortName,
         routeColor: r.route.color,
         from: this.place(b.stopId),

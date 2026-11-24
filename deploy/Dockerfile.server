@@ -11,13 +11,16 @@ RUN pnpm install --frozen-lockfile \
  && pnpm --filter @transit/server deploy --prod --legacy /out
 
 FROM node:24-alpine AS runtime
+RUN apk add --no-cache libstdc++
 ENV NODE_ENV=production \
     PORT=3000 \
-    GTFS_DIR=/app/data/gtfs/delhi-pilot
+    GTFS_DIR=/app/data/gtfs/delhi-pilot \
+    REPORT_DB_PATH=/app/state/reports.sqlite
 WORKDIR /app
 COPY --from=build /out .
 # The GTFS feed the API routes on. Rebuild the image after `pnpm data:build`.
 COPY data/gtfs/delhi-pilot ./data/gtfs/delhi-pilot
+RUN mkdir -p /app/state && chown node:node /app/state
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \

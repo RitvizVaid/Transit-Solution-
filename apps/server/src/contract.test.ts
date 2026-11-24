@@ -19,6 +19,7 @@ import {
   type StandStatus,
   type TransitRoute,
 } from '@transit/shared-types';
+import { createHash } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app.js';
 import { decodePolyline } from './services/geo.js';
@@ -27,6 +28,10 @@ import { GTFS_DIR } from './test/fixtures.js';
 const app = await buildApp({
   config: {
     gtfsDir: GTFS_DIR,
+    reportDbPath: ':memory:',
+    reportTokenHashes: {
+      'rf-1': createHash('sha256').update('a'.repeat(64)).digest('hex'),
+    },
     simulateVehicles: false,
     simulateReports: false,
     otpUrl: undefined,

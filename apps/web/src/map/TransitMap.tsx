@@ -148,10 +148,19 @@ export default function TransitMap(props: MapViewProps) {
         type: 'circle',
         source: 'vehicles',
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 3.5, 16, 7],
+          // Crowd-shared (real) vehicles are larger with a dark ring; demo traffic stays small.
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            12,
+            ['case', ['get', 'crowd'], 5, 3.5],
+            16,
+            ['case', ['get', 'crowd'], 9, 7],
+          ],
           'circle-color': ['get', 'color'],
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 1.5,
+          'circle-stroke-color': ['case', ['get', 'crowd'], '#0f172a', '#ffffff'],
+          'circle-stroke-width': ['case', ['get', 'crowd'], 2.5, 1.5],
         },
       });
 
@@ -283,6 +292,7 @@ export default function TransitMap(props: MapViewProps) {
       drawStands();
     });
     const offVehicle = live.onVehicle((v) => animator.update(v, performance.now()));
+    const offRemoved = live.onVehicleRemoved((id) => animator.remove(id));
     const offOpen = live.onOpenChange((open) => open && sendBbox());
     map.on('moveend', sendBbox);
     sendBbox();
@@ -294,7 +304,10 @@ export default function TransitMap(props: MapViewProps) {
           type: 'FeatureCollection',
           features: frame.map(({ vehicle, at }) => ({
             type: 'Feature',
-            properties: { color: colors.get(vehicle.routeId ?? '') ?? '#334155' },
+            properties: {
+              color: colors.get(vehicle.routeId ?? '') ?? '#334155',
+              crowd: vehicle.source === 'crowd',
+            },
             geometry: { type: 'Point', coordinates: at },
           })),
         });
@@ -307,6 +320,7 @@ export default function TransitMap(props: MapViewProps) {
       map.off('moveend', sendBbox);
       offStand();
       offVehicle();
+      offRemoved();
       offOpen();
       live.setBbox(null);
       release();

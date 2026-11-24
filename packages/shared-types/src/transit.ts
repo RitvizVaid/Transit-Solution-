@@ -62,6 +62,8 @@ export interface Itinerary {
 
 export interface Leg {
   mode: LegMode;
+  /** Network route id (GET /api/v1/routes). Absent for WALK legs and unknown OTP routes. */
+  routeId?: string;
   /** e.g. "Route 4A - Ring Road". Absent for WALK legs. */
   routeShortName?: string;
   /** Hex colour, e.g. "#FF8800". */

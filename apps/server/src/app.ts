@@ -9,11 +9,14 @@ import { healthRoutes } from './routes/health.js';
 import { liveRoutes } from './routes/live.js';
 import { networkRoutes } from './routes/network.js';
 import { planRoutes } from './routes/plan.js';
+import { rideRoutes } from './routes/rides.js';
 import { standRoutes } from './routes/stands.js';
 import { telemetryRoutes } from './routes/telemetry.js';
 import { OtpClient } from './services/otp.js';
 import { Planner } from './services/planner.js';
 import { PlanService } from './services/planService.js';
+import { ReportRepository } from './services/reportRepository.js';
+import { RideTracker } from './services/rides.js';
 import { mulberry32, randomReport, simulatedPositions } from './services/simulator.js';
 import { StandStore } from './services/stands.js';
 import { serviceClock } from './services/time.js';
@@ -25,8 +28,13 @@ export interface Transit {
   stands: StandStore;
   planner: PlanService;
   hub: LiveHub;
+  reports: ReportRepository;
+  /** Vehicles whose position commuters are sharing while riding them. */
+  rides: RideTracker;
   /** Clock for routing and simulation (real time, or DEMO_TIME_OF_DAY). */
   serviceNow: () => Date;
+  /** Clock used for report freshness and event timestamps. */
+  now: () => number;
 }
 
 declare module 'fastify' {
@@ -48,13 +56,28 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
   const app = Fastify(opts);
 
   const network = TransitNetwork.load(config.gtfsDir);
-  const stands = new StandStore(network, now);
+  const clock = now ?? Date.now;
+  const reports = new ReportRepository(config.reportDbPath);
+  const stands = new StandStore(network, clock);
+  stands.restore(reports.recentReports(clock()));
   const hub = new LiveHub(() => stands.list());
+  const rides = new RideTracker(network, clock);
   const otp = config.otpUrl ? new OtpClient(config.otpUrl, network, stands, fetchImpl) : undefined;
   const planner = new PlanService(new Planner(network, stands), otp, app.log);
   stands.on('change', (s) => hub.publishStand(s));
   const serviceNow = serviceClock(config.demoTimeOfDay);
-  app.decorate('transit', { config, network, stands, planner, hub, serviceNow });
+  app.decorate('transit', {
+    config,
+    network,
+    stands,
+    planner,
+    hub,
+    reports,
+    rides,
+    serviceNow,
+    now: clock,
+  });
+  app.addHook('onClose', async () => reports.close());
   if (config.demoTimeOfDay) {
     app.log.warn(
       `DEMO_TIME_OF_DAY=${config.demoTimeOfDay}: routing/simulation clock is shifted (demo/test only)`,
@@ -86,6 +109,11 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
         { name: 'network', description: 'Routes and stops' },
         { name: 'live', description: 'Stands and telemetry' },
       ],
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer' },
+        },
+      },
     },
   });
   await app.register(swaggerUi, { routePrefix: '/docs' });
@@ -96,28 +124,41 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
   await app.register(networkRoutes, { prefix: '/api/v1' });
   await app.register(standRoutes, { prefix: '/api/v1' });
   await app.register(telemetryRoutes, { prefix: '/api/v1' });
+  await app.register(rideRoutes, { prefix: '/api/v1' });
   await app.register(liveRoutes, { prefix: '/api/v1' });
 
-  if (config.simulateVehicles || config.simulateReports) {
-    const rng = mulberry32(20261124);
-    let tick = 0;
-    const timer = setInterval(() => {
-      if (config.simulateVehicles) hub.publishVehicles(simulatedPositions(network, serviceNow()));
-      // A stand report roughly every 10 s, so cards and the map visibly change.
-      if (config.simulateReports && ++tick % 5 === 0) {
-        const all = network.stands();
-        const stand = all[Math.floor(rng() * all.length)];
-        if (stand) {
-          stands.apply({
-            standId: stand.id,
-            kind: randomReport(rng),
-            reportedAt: new Date().toISOString(),
-          });
-        }
+  // Every 2 s: refresh live vehicles (crowd-shared rides, plus demo traffic when enabled)
+  // and, in demos, inject a synthetic stand report every ~10 s.
+  const rng = mulberry32(20261124);
+  let tick = 0;
+  let hadVehicles = false;
+  const timer = setInterval(() => {
+    const crowd = rides.positions();
+    // Where commuters are sharing a route, they replace its simulated vehicles.
+    const realRoutes = new Set(crowd.map((v) => v.routeId));
+    const simulated = config.simulateVehicles
+      ? simulatedPositions(network, serviceNow()).filter((v) => !realRoutes.has(v.routeId))
+      : [];
+    const vehicles = [...simulated, ...crowd];
+    if (vehicles.length || hadVehicles) hub.publishVehicles(vehicles);
+    hadVehicles = vehicles.length > 0;
+
+    if (config.simulateReports && ++tick % 5 === 0) {
+      const all = network.stands();
+      const stand = all[Math.floor(rng() * all.length)];
+      if (stand) {
+        stands.apply({
+          reportId: `sim-${tick}`,
+          standId: stand.id,
+          kind: randomReport(rng),
+          reportedAt: new Date().toISOString(),
+        });
       }
-    }, 2000);
-    timer.unref();
-    app.addHook('onClose', async () => clearInterval(timer));
+    }
+  }, 2000);
+  timer.unref();
+  app.addHook('onClose', async () => clearInterval(timer));
+  if (config.simulateVehicles || config.simulateReports) {
     app.log.info(
       { vehicles: config.simulateVehicles, reports: config.simulateReports },
       'simulation on (SIMULATE / SIMULATE_VEHICLES / SIMULATE_REPORTS)',

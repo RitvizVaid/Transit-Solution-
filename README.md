@@ -51,6 +51,10 @@ pnpm install
 pnpm dev
 ```
 
+Stand reporting is disabled until the server has a `REPORT_TOKENS_JSON` mapping of stand IDs
+to private random tokens. Configure those tokens in the server environment before using the
+driver portal; Docker and pilot setup details are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 | App            | URL                                                    |
 | -------------- | ------------------------------------------------------ |
 | Commuter web   | http://localhost:5173                                  |

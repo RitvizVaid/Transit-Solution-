@@ -15,9 +15,9 @@ WebSocket) to the API container, so everything is same-origin. Put a TLS-termina
 for geolocation, service workers and "Add to Home Screen".
 
 `SIMULATE=false` disables generated reports and vehicle positions, but stand status still
-starts with schedule-based estimates and default counts. The current UI can label these
-as live; see [UI-01](ui-deficiency-register.md). Reports also lack operator identity
-and stand state is in memory. Resolve these limitations before a public field pilot.
+starts with schedule-based estimates and default counts. The pilot reporter flow requires
+per-stand tokens and SQLite persistence; configure both before collecting field reports.
+This is a single-API-instance design; do not scale the API horizontally with local SQLite.
 
 ## Option B: managed hosting
 
@@ -37,12 +37,26 @@ Static hosts need:
 
 The API needs:
 
-| Env           | Value                                                    |
-| ------------- | -------------------------------------------------------- |
-| `CORS_ORIGIN` | the web app origin(s), e.g. `https://transit.example`    |
-| `SIMULATE`    | `false` for a real pilot                                 |
-| `OTP_URL`     | optional, see below                                      |
-| `GTFS_DIR`    | already set in the image; rebuild after `pnpm data:build` |
+| Env                   | Value                                                        |
+| --------------------- | ------------------------------------------------------------ |
+| `CORS_ORIGIN`         | the web app origin(s), e.g. `https://transit.example`        |
+| `SIMULATE`            | `false` for a real pilot                                     |
+| `REPORT_TOKENS_JSON`  | server-side JSON mapping each stand ID to a distinct random token (≥32 bytes) |
+| `REPORT_DB_PATH`      | durable writable SQLite file; back up this data              |
+| `OTP_URL`             | optional, see below                                           |
+| `GTFS_DIR`            | already set in the image; rebuild after `pnpm data:build`    |
+
+For local Docker Compose, set `REPORT_TOKENS_JSON` in an ignored `.env` file at the
+repository root. Example shape (replace every placeholder with a random secret):
+
+```dotenv
+REPORT_TOKENS_JSON={"kg-auto-1":"<random-token-at-least-32-bytes>","odrs-1":"<another-random-token-at-least-32-bytes>"}
+```
+
+Give each marshal only the token for their stand. The driver portal asks for the token at
+the selected stand and keeps it in memory only. Compose stores the SQLite database in the
+`transit-state` named volume; managed hosts must mount a persistent volume at the configured
+database directory and run a single API instance.
 
 The platform must support WebSockets (all of the above do). Stand state is in memory:
 run **one** API instance until `StandStore` is backed by Redis (see `apps/server/README.md`).

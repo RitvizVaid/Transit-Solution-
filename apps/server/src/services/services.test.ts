@@ -83,6 +83,7 @@ describe('StandStore', () => {
     const changes = vi.fn();
     store.on('change', changes);
     const first = store.apply({
+      reportId: 'full-1',
       standId: 'kg-auto-1',
       kind: 'STAND_FULL',
       reportedAt: at('2026-12-01T09:59:00+05:30'),
@@ -91,6 +92,7 @@ describe('StandStore', () => {
     expect(first.availableVehiclesEstimate).toBe(0);
     expect(first.averageWaitMinutes).toBeGreaterThanOrEqual(4);
     const second = store.apply({
+      reportId: 'full-2',
       standId: 'kg-auto-1',
       kind: 'STAND_FULL',
       reportedAt: at('2026-12-01T09:59:30+05:30'),
@@ -103,6 +105,7 @@ describe('StandStore', () => {
     const store = new StandStore(net, () => MORNING.getTime());
     for (const m of ['09:30', '09:40', '09:50', '10:00']) {
       store.apply({
+        reportId: `departure-${m}`,
         standId: 'kg-auto-1',
         kind: 'DEPARTING_NOW',
         reportedAt: at(`2026-12-01T${m}:00+05:30`),
@@ -115,6 +118,7 @@ describe('StandStore', () => {
     let now = MORNING.getTime();
     const store = new StandStore(net, () => now);
     store.apply({
+      reportId: 'stale-full',
       standId: 'kg-auto-1',
       kind: 'STAND_FULL',
       reportedAt: new Date(now).toISOString(),
@@ -127,10 +131,16 @@ describe('StandStore', () => {
 
   it('rejects unknown stands and future timestamps', () => {
     const store = new StandStore(net, () => MORNING.getTime());
-    expect(() => store.apply({ standId: 'nope', kind: 'STAND_EMPTY', reportedAt: '' })).toThrow(
-      'unknown stand',
-    );
+    expect(() =>
+      store.apply({
+        reportId: 'unknown-stand',
+        standId: 'nope',
+        kind: 'STAND_EMPTY',
+        reportedAt: '',
+      }),
+    ).toThrow('unknown stand');
     const s = store.apply({
+      reportId: 'future-empty',
       standId: 'kg-auto-1',
       kind: 'STAND_EMPTY',
       reportedAt: '2030-01-01T00:00:00Z',
@@ -226,6 +236,22 @@ describe('config and service clock', () => {
     });
     expect(loadConfig({ DEMO_TIME_OF_DAY: '10:00' }).demoTimeOfDay).toBe('10:00');
     expect(() => loadConfig({ DEMO_TIME_OF_DAY: '25:99' })).toThrow('DEMO_TIME_OF_DAY');
+    expect(
+      loadConfig({
+        REPORT_TOKENS_JSON: JSON.stringify({ 'kg-auto-1': 'a'.repeat(64) }),
+      }).reportTokenHashes['kg-auto-1'],
+    ).toBeDefined();
+    expect(() => loadConfig({ REPORT_TOKENS_JSON: '{"kg-auto-1":"short"}' })).toThrow(
+      'at least 32 bytes',
+    );
+    expect(() =>
+      loadConfig({
+        REPORT_TOKENS_JSON: JSON.stringify({
+          'kg-auto-1': 'a'.repeat(64),
+          'odrs-1': 'a'.repeat(64),
+        }),
+      }),
+    ).toThrow('tokens must be unique');
   });
 
   it('runs the demo clock from the chosen IST time of day, in real time', async () => {

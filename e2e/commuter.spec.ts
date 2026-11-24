@@ -1,5 +1,5 @@
 import { API } from './playwright.config';
-import { CC_MARKET, expect, KG_METRO, test, WEB } from './fixtures';
+import { CC_MARKET, expect, KG_METRO, REPORT_TOKENS, test, WEB } from './fixtures';
 
 const planUrl = (from: string, to: string) =>
   `${WEB}/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
@@ -51,7 +51,13 @@ test.describe('commuter web app', () => {
     await expect(first).toContainText('autos at stand');
     for (let i = 0; i < 2; i++) {
       const res = await request.post(`${API}/api/v1/telemetry/reports`, {
-        data: { standId: 'kg-auto-1', kind: 'STAND_FULL', reportedAt: new Date().toISOString() },
+        headers: { authorization: `Bearer ${REPORT_TOKENS['kg-auto-1']}` },
+        data: {
+          reportId: crypto.randomUUID(),
+          standId: 'kg-auto-1',
+          kind: 'STAND_FULL',
+          reportedAt: new Date().toISOString(),
+        },
       });
       expect(res.status()).toBe(202);
     }

@@ -53,6 +53,13 @@ export class StandStore extends EventEmitter<{ change: [StandStatus] }> {
     }
   }
 
+  /** Replays recent persisted observations in event-time order during server startup. */
+  restore(reports: StandReport[]): void {
+    for (const report of reports) {
+      if (this.has(report.standId)) this.apply(report);
+    }
+  }
+
   has(standId: string): boolean {
     return this.stands.has(standId);
   }

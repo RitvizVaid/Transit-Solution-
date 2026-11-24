@@ -38,14 +38,17 @@ Fares: each ride is a separate ticket, `max(min, min + (km − base_km) × per_k
 ## Live data
 
 - `POST /api/v1/telemetry/reports` (driver portal) updates `StandStore`; each change is pushed
-  to WebSocket subscribers and immediately affects plans (waits, congestion).
+  to WebSocket subscribers and immediately affects plans (waits, congestion). Tokens are
+  provisioned per stand through `REPORT_TOKENS_JSON`; reports are persisted in SQLite and
+  recent reports are restored on startup.
 - Departure reports measure the real headway (≥ 3 departures). Reports older than 30 min fall
   back to the schedule baseline, keeping the honest `lastUpdated`.
 - With `SIMULATE=true`, vehicles move along their shapes at their headways and a random stand
   report arrives every ~10 s.
 
-State is in memory, correct for one instance. To run several, back `StandStore` with Redis
-(hash per stand, pub/sub on `change`) — the class interface is the seam.
+Stand status is in memory and backed by the recent persisted report history, so run one API
+instance with a durable writable SQLite path. SQLite prevents duplicate and out-of-order
+reports; it does not coordinate multiple API instances.
 
 ## Env
 
@@ -56,3 +59,10 @@ State is in memory, correct for one instance. To run several, back `StandStore` 
 | `OTP_URL`     | unset                           | e.g. `http://otp:8080`; unset = built-in |
 | `SIMULATE`    | `true` unless `NODE_ENV=production` | synthetic vehicles + reports         |
 | `CORS_ORIGIN` | any                             | allowed browser origin                   |
+| `REPORT_TOKENS_JSON` | unset                    | JSON object mapping stand IDs to private tokens (min. 32 bytes) |
+| `REPORT_DB_PATH` | `.local/reports.sqlite`       | durable SQLite file for accepted reports |
+
+Generate a distinct random token per stand, keep it in server-side environment configuration,
+and provide only that stand's token to its marshal. Reports require a token, stable report ID,
+and event timestamp; retries are idempotent, reports older than 30 minutes are rejected, and
+reports older than the latest accepted event for the stand are rejected.

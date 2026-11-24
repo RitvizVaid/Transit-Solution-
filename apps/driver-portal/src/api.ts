@@ -1,4 +1,5 @@
 import type { ServerMessage, StandReport, StandStatus } from '@transit/shared-types';
+import type { SendResult } from './reportQueue';
 
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '');
 
@@ -8,17 +9,49 @@ export async function fetchStands(): Promise<StandStatus[]> {
   return (await res.json()) as StandStatus[];
 }
 
-/** 202 → delivered; 4xx → the server will never accept it (drop); else retry later. */
-export async function sendReport(report: StandReport): Promise<'ok' | 'retry' | 'drop'> {
+export async function authorizeReportToken(
+  standId: string,
+  token: string,
+): Promise<'ok' | 'invalid' | 'unavailable'> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/v1/telemetry/session`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch {
+    return 'unavailable';
+  }
+  if (res.status === 401 || res.status === 403) return 'invalid';
+  if (!res.ok) return 'unavailable';
+  let body: { standId: string };
+  try {
+    body = (await res.json()) as { standId: string };
+  } catch {
+    return 'unavailable';
+  }
+  return body.standId === standId ? 'ok' : 'invalid';
+}
+
+/** Only retry transient failures; report IDs make retries idempotent. */
+export async function sendReport(report: StandReport, token: string): Promise<SendResult> {
   const res = await fetch(`${API_BASE}/api/v1/telemetry/reports`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(report),
   });
-  if (res.ok) return 'ok';
-  return res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429
-    ? 'drop'
-    : 'retry';
+  if (res.ok) return { status: 'ok' };
+  if (res.status === 401 || res.status === 403) return { status: 'drop', reason: 'authorization' };
+  if (res.status === 410) return { status: 'drop', reason: 'expired' };
+  if (
+    res.status === 409 ||
+    (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429)
+  )
+    return { status: 'drop', reason: 'rejected' };
+  return { status: 'retry' };
 }
 
 /** Live status for one stand. Returns an unsubscribe function. */
