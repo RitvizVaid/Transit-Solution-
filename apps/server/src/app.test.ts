@@ -193,7 +193,10 @@ describe('LiveHub', () => {
 describe('C2.5 snapping to the nearest corridor', () => {
   it('snaps a point off the network onto the closest route', async () => {
     // Tis Hazari: ~900 m west of the nearest corridor (CL-6 via Mori Gate).
-    const res = await app.inject({ method: 'GET', url: '/api/v1/routes/nearest?lat=28.6672&lng=77.2165' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/routes/nearest?lat=28.6672&lng=77.2165',
+    });
     expect(res.statusCode).toBe(200);
     const body = res.json<NearestLineResponse>();
     expect(body.route.id).toBe('CL-6');
@@ -206,13 +209,18 @@ describe('C2.5 snapping to the nearest corridor', () => {
 
   it('returns ~0 m for a point on a route line, between stops', async () => {
     // On KG-1 between GPO and Chandni Chowk Metro.
-    const res = await app.inject({ method: 'GET', url: '/api/v1/routes/nearest?lat=28.6600&lng=77.2302' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/routes/nearest?lat=28.6600&lng=77.2302',
+    });
     const body = res.json<NearestLineResponse>();
     expect(['KG-1']).toContain(body.route.id);
     expect(body.distanceMeters).toBeLessThan(5);
   });
 
   it('validates coordinates', async () => {
-    expect((await app.inject({ method: 'GET', url: '/api/v1/routes/nearest?lat=200&lng=1' })).statusCode).toBe(400);
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/routes/nearest?lat=200&lng=1' })).statusCode,
+    ).toBe(400);
   });
 });

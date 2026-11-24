@@ -114,7 +114,9 @@ export class MeasuredLine {
       const dy = b.lat - a.lat;
       const seg2 = dx * dx + dy * dy;
       const t =
-        seg2 === 0 ? 0 : Math.max(0, Math.min(1, (((p.lng - a.lng) * k) * dx + (p.lat - a.lat) * dy) / seg2));
+        seg2 === 0
+          ? 0
+          : Math.max(0, Math.min(1, ((p.lng - a.lng) * k * dx + (p.lat - a.lat) * dy) / seg2));
       const point = { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t };
       const offsetM = haversineMeters(p, point);
       if (offsetM < best.offsetM) {

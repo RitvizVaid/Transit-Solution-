@@ -36,11 +36,14 @@ export function useNearbyLines(center: LatLng | null, radius: NearbyRadius, enab
       .then(async ([{ stops }, routes]) => {
         const lines = groupNearbyLines(stops, routes);
         // Nothing in range: snap to the closest corridor so the commuter knows where to walk.
-        const nearest = lines.length ? null : await fetchNearestLine({ lat, lng }, ctrl.signal).catch(() => null);
+        const nearest = lines.length
+          ? null
+          : await fetchNearestLine({ lat, lng }, ctrl.signal).catch(() => null);
         if (!ctrl.signal.aborted) setAnswer({ key, ok: true, lines, nearest });
       })
       .catch((err: unknown) => {
-        if (!isAbortError(err) && !ctrl.signal.aborted) setAnswer({ key, ok: false, lines: [], nearest: null });
+        if (!isAbortError(err) && !ctrl.signal.aborted)
+          setAnswer({ key, ok: false, lines: [], nearest: null });
       });
     return () => ctrl.abort();
   }, [key, lat, lng, radius, enabled]);
@@ -48,7 +51,10 @@ export function useNearbyLines(center: LatLng | null, radius: NearbyRadius, enab
   let state: NearbyState;
   if (!enabled || !key) state = { status: 'idle' };
   else if (answer?.key !== key) state = { status: 'loading', lines: answer?.lines ?? [] };
-  else state = answer.ok ? { status: 'ok', lines: answer.lines, nearest: answer.nearest } : { status: 'error' };
+  else
+    state = answer.ok
+      ? { status: 'ok', lines: answer.lines, nearest: answer.nearest }
+      : { status: 'error' };
 
   return { state, retry: () => setAttempt((n) => n + 1) };
 }

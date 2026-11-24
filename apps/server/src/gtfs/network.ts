@@ -295,9 +295,16 @@ export class TransitNetwork {
     const { fare: _f, ...publicRoute } = route;
     return {
       route: publicRoute,
-      snapped: { lat: Math.round(best.snapped.lat * 1e6) / 1e6, lng: Math.round(best.snapped.lng * 1e6) / 1e6 },
+      snapped: {
+        lat: Math.round(best.snapped.lat * 1e6) / 1e6,
+        lng: Math.round(best.snapped.lng * 1e6) / 1e6,
+      },
       distanceMeters: Math.round(best.offsetM),
-      nearestStop: { ...stop, routeIds: [...stop.routeIds], distanceMeters: Math.round(nearestStop.d) },
+      nearestStop: {
+        ...stop,
+        routeIds: [...stop.routeIds],
+        distanceMeters: Math.round(nearestStop.d),
+      },
     };
   }
 

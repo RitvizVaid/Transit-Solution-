@@ -1,12 +1,4 @@
-import {
-  CC_MARKET,
-  expect,
-  photonRequests,
-  planUrl,
-  test,
-  TIS_HAZARI,
-  WEB,
-} from './fixtures';
+import { CC_MARKET, expect, photonRequests, planUrl, test, TIS_HAZARI, WEB } from './fixtures';
 
 /** GAME_PLAN Contributor 1 tasks that the main commuter spec doesn't already cover. */
 test.describe('commuter app (C1)', () => {
@@ -27,11 +19,13 @@ test.describe('commuter app (C1)', () => {
     const before = (await panel.boundingBox())!.height;
     await page.getByRole('button', { name: 'Expand panel' }).focus();
     await page.keyboard.press('ArrowUp');
-    await expect.poll(async () => (await panel.boundingBox())!.height).toBeGreaterThan(before + 100);
+    await expect
+      .poll(async () => (await panel.boundingBox())!.height)
+      .toBeGreaterThan(before + 100);
     await page.keyboard.press('ArrowUp');
-    await expect.poll(async () => (await panel.boundingBox())!.height).toBeGreaterThan(
-      page.viewportSize()!.height * 0.85,
-    );
+    await expect
+      .poll(async () => (await panel.boundingBox())!.height)
+      .toBeGreaterThan(page.viewportSize()!.height * 0.85);
   });
 
   test('1.2 "current location" uses GPS as the start', async ({ isolated: page, context }) => {
@@ -43,11 +37,16 @@ test.describe('commuter app (C1)', () => {
     await expect(page.getByRole('article').first()).toContainText('KG-1');
   });
 
-  test('1.2 a denied location permission explains what to do', async ({ isolated: page, context }) => {
+  test('1.2 a denied location permission explains what to do', async ({
+    isolated: page,
+    context,
+  }) => {
     await context.clearPermissions();
     await page.goto(WEB);
     await page.getByRole('button', { name: 'Start from my current location' }).click();
-    await expect(page.getByRole('alert')).toContainText(/Location is blocked|Couldn.t find your location/);
+    await expect(page.getByRole('alert')).toContainText(
+      /Location is blocked|Couldn.t find your location/,
+    );
   });
 
   test('1.2 place search is debounced (one request per pause, not per keystroke)', async ({
@@ -96,7 +95,9 @@ test.describe('commuter app (C1)', () => {
     const banner = page.getByRole('region', { name: 'Install the app' });
     await expect(banner).toBeVisible();
     await banner.getByRole('button', { name: 'Install', exact: true }).click();
-    await expect.poll(() => page.evaluate(() => (window as unknown as { __prompted?: boolean }).__prompted)).toBe(true);
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __prompted?: boolean }).__prompted))
+      .toBe(true);
     await expect(banner).toBeHidden();
   });
 
@@ -104,8 +105,14 @@ test.describe('commuter app (C1)', () => {
     request,
   }) => {
     const manifest = await (await request.get(`${WEB}/manifest.webmanifest`)).json();
-    expect(manifest).toMatchObject({ short_name: 'Transit', display: 'standalone', start_url: '/' });
-    const sizes = (manifest.icons as { sizes: string; purpose?: string; src: string }[]).map((i) => i.sizes);
+    expect(manifest).toMatchObject({
+      short_name: 'Transit',
+      display: 'standalone',
+      start_url: '/',
+    });
+    const sizes = (manifest.icons as { sizes: string; purpose?: string; src: string }[]).map(
+      (i) => i.sizes,
+    );
     expect(sizes).toEqual(expect.arrayContaining(['192x192', '512x512']));
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === 'maskable')).toBe(true);
     for (const icon of manifest.icons as { src: string }[]) {
@@ -115,7 +122,9 @@ test.describe('commuter app (C1)', () => {
     }
   });
 
-  test('loads the planner in under 1.5 s on a throttled 3G phone', async ({ browser }, testInfo) => {
+  test('loads the planner in under 1.5 s on a throttled 3G phone', async ({
+    browser,
+  }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile budget');
     // Fresh context: no service worker or HTTP cache (first visit from a QR code).
     const context = await browser.newContext({ ...testInfo.project.use });
@@ -137,7 +146,6 @@ test.describe('commuter app (C1)', () => {
     await expect(page.getByRole('combobox', { name: 'To' })).toBeVisible({ timeout: 10_000 });
     const ms = Date.now() - t0;
     testInfo.annotations.push({ type: 'load time (3G, 4× CPU)', description: `${ms} ms` });
-    console.log(`planner usable after ${ms} ms on throttled 3G`);
     expect(ms).toBeLessThan(1500);
     await context.close();
   });

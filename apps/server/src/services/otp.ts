@@ -145,7 +145,12 @@ export class OtpClient {
       const boardStop = this.net.stops.get(localId(l.from.stop?.gtfsId) ?? '');
       const alightStop = this.net.stops.get(localId(l.to.stop?.gtfsId) ?? '');
       if (route) {
-        rides.push({ model: route.fare, distanceMeters: l.distance, fromZone: boardStop?.zoneId, toZone: alightStop?.zoneId });
+        rides.push({
+          model: route.fare,
+          distanceMeters: l.distance,
+          fromZone: boardStop?.zoneId,
+          toZone: alightStop?.zoneId,
+        });
       }
       const mode: LegMode = route?.mode ?? (l.mode === 'BUS' ? 'BUS' : 'SHARED_TAXI');
       return {

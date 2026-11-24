@@ -8,10 +8,11 @@ const DRIVER = process.env.DRIVER ?? 'http://localhost:8081';
 const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS ?? 90_000);
 
 let failures = 0;
-const ok = (name, detail = '') => console.log(`  ✓ ${name}${detail ? `  (${detail})` : ''}`);
+const ok = (name, detail = '') =>
+  process.stdout.write(`  ✓ ${name}${detail ? `  (${detail})` : ''}\n`);
 const fail = (name, err) => {
   failures++;
-  console.log(`  ✗ ${name}: ${err}`);
+  process.stderr.write(`  ✗ ${name}: ${err}\n`);
 };
 async function check(name, fn) {
   try {
@@ -36,7 +37,7 @@ async function waitForHealth() {
   }
 }
 
-console.log(`smoke: web ${WEB}, driver ${DRIVER}`);
+process.stdout.write(`smoke: web ${WEB}, driver ${DRIVER}\n`);
 const health = await waitForHealth().catch((e) => {
   fail('health', e.message);
   process.exit(1);
@@ -60,9 +61,12 @@ await check('SPA fallback for deep links', async () => {
 });
 
 await check('trip planning through nginx', async () => {
-  const r = await fetch(`${WEB}/api/v1/plan?fromLat=28.6675&fromLng=77.2282&toLat=28.6563&toLng=77.2412`);
+  const r = await fetch(
+    `${WEB}/api/v1/plan?fromLat=28.6675&fromLng=77.2282&toLat=28.6563&toLng=77.2412`,
+  );
   const body = await r.json();
-  if (!body.itineraries?.length) throw new Error('no itineraries (outside service hours? set DEMO_TIME_OF_DAY)');
+  if (!body.itineraries?.length)
+    throw new Error('no itineraries (outside service hours? set DEMO_TIME_OF_DAY)');
   return `${body.itineraries.length} itineraries via ${r.headers.get('x-planner')}`;
 });
 
@@ -72,7 +76,11 @@ await check('driver portal + report through its nginx', async () => {
   const r = await fetch(`${DRIVER}/api/v1/telemetry/reports`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ standId: 'kg-auto-1', kind: 'DEPARTING_NOW', reportedAt: new Date().toISOString() }),
+    body: JSON.stringify({
+      standId: 'kg-auto-1',
+      kind: 'DEPARTING_NOW',
+      reportedAt: new Date().toISOString(),
+    }),
   });
   if (r.status !== 202) throw new Error(`status ${r.status}`);
   return '202 accepted';
@@ -82,7 +90,8 @@ await check('WebSocket live feed through nginx', async () => {
   const ws = new WebSocket(`${WEB.replace(/^http/, 'ws')}/api/v1/live`);
   let n = 0;
   await new Promise((resolve, reject) => {
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe.bbox', bbox: [77.2, 28.62, 77.26, 28.68] }));
+    ws.onopen = () =>
+      ws.send(JSON.stringify({ type: 'subscribe.bbox', bbox: [77.2, 28.62, 77.26, 28.68] }));
     ws.onmessage = () => n++;
     ws.onerror = () => reject(new Error('socket error'));
     setTimeout(resolve, 5000);
@@ -99,5 +108,5 @@ await check('API docs', async () => {
   return `${Object.keys(doc.paths).length} paths`;
 });
 
-console.log(failures ? `smoke: ${failures} FAILED` : 'smoke: all passed');
+process.stdout.write(`${failures ? `smoke: ${failures} FAILED` : 'smoke: all passed'}\n`);
 process.exit(failures ? 1 : 0);

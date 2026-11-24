@@ -56,7 +56,9 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
   const serviceNow = serviceClock(config.demoTimeOfDay);
   app.decorate('transit', { config, network, stands, planner, hub, serviceNow });
   if (config.demoTimeOfDay) {
-    app.log.warn(`DEMO_TIME_OF_DAY=${config.demoTimeOfDay}: routing/simulation clock is shifted (demo/test only)`);
+    app.log.warn(
+      `DEMO_TIME_OF_DAY=${config.demoTimeOfDay}: routing/simulation clock is shifted (demo/test only)`,
+    );
   }
 
   app.log.info(

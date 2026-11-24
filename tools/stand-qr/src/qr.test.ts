@@ -52,7 +52,7 @@ describe('stand QR codes (Sprint 4)', () => {
   it('every QR code decodes back to its exact URL', () => {
     for (const s of stands) {
       for (const url of [commuterUrl(WEB, s), marshalUrl(DRIVER, s)]) {
-        expect(decode(url), url).toBe(url);
+        expect(decode(url)).toBe(url);
       }
     }
   });

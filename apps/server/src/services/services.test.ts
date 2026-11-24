@@ -174,7 +174,12 @@ describe('zonal fares (stage fares) and the published fare matrix', () => {
   const m14 = net.routes.get('M-14')!.fare;
 
   it('loads GTFS zone fares and prefers them over distance', () => {
-    expect(m14.zoneFares).toMatchObject({ 'NORTH>NORTH': 10, 'NORTH>OLD': 15, 'OLD>NORTH': 15, 'NORTH>SOUTH': 20 });
+    expect(m14.zoneFares).toMatchObject({
+      'NORTH>NORTH': 10,
+      'NORTH>OLD': 15,
+      'OLD>NORTH': 15,
+      'NORTH>SOUTH': 20,
+    });
     expect(legFare(m14, 5000, 'NORTH', 'SOUTH')).toBe(20); // distance formula would say 15
     expect(legFare(m14, 5000)).toBe(15); // no zones known → distance
     expect(net.routes.get('KG-1')!.fare.zoneFares).toBeUndefined();
@@ -190,7 +195,9 @@ describe('zonal fares (stage fares) and the published fare matrix', () => {
     expect(rows.length).toBeGreaterThan(100);
     let checked = 0;
     for (const row of rows) {
-      const pattern = net.patterns.find((p) => p.tripId === `${row.route_id}-d${row.direction_id}`)!;
+      const pattern = net.patterns.find(
+        (p) => p.tripId === `${row.route_id}-d${row.direction_id}`,
+      )!;
       const a = pattern.stops.find((s) => s.stopId === row.from_stop_id)!;
       const b = pattern.stops.find((s) => s.stopId === row.to_stop_id)!;
       const fare = legFare(
@@ -213,7 +220,10 @@ describe('config and service clock', () => {
       simulateVehicles: true,
       simulateReports: false,
     });
-    expect(loadConfig({ NODE_ENV: 'production' })).toMatchObject({ simulateVehicles: false, simulateReports: false });
+    expect(loadConfig({ NODE_ENV: 'production' })).toMatchObject({
+      simulateVehicles: false,
+      simulateReports: false,
+    });
     expect(loadConfig({ DEMO_TIME_OF_DAY: '10:00' }).demoTimeOfDay).toBe('10:00');
     expect(() => loadConfig({ DEMO_TIME_OF_DAY: '25:99' })).toThrow('DEMO_TIME_OF_DAY');
   });

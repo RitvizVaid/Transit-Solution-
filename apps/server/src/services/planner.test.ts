@@ -199,7 +199,10 @@ describe('OTP integration', () => {
 describe('network coverage (Sprint 2 goal: plan between any two points in the pilot zone)', () => {
   const planner = new Planner(net);
   /** Needs 5 informal rides; in reality a metro trip. Closing it needs a new corridor (C4). */
-  const KNOWN_GAPS = new Set(['civil-lines-metro>rajiv-chowk-g5', 'rajiv-chowk-g5>civil-lines-metro']);
+  const KNOWN_GAPS = new Set([
+    'civil-lines-metro>rajiv-chowk-g5',
+    'rajiv-chowk-g5>civil-lines-metro',
+  ]);
 
   it('connects every pair of stops during service hours, except documented gaps', () => {
     const stops = [...net.stops.values()];
@@ -207,7 +210,8 @@ describe('network coverage (Sprint 2 goal: plan between any two points in the pi
     for (const a of stops) {
       for (const b of stops) {
         if (a === b) continue;
-        if (!planner.plan(a, b, { departAt: MORNING }).itineraries.length) unplannable.push(`${a.id}>${b.id}`);
+        if (!planner.plan(a, b, { departAt: MORNING }).itineraries.length)
+          unplannable.push(`${a.id}>${b.id}`);
       }
     }
     expect(unplannable.sort()).toEqual([...KNOWN_GAPS].sort());
@@ -228,7 +232,8 @@ describe('network coverage (Sprint 2 goal: plan between any two points in the pi
 
   it('plans in well under a millisecond per query on the pilot network', () => {
     const t = performance.now();
-    for (let i = 0; i < 200; i++) planner.plan(PLACES.civilLines, PLACES.ito, { departAt: MORNING });
+    for (let i = 0; i < 200; i++)
+      planner.plan(PLACES.civilLines, PLACES.ito, { departAt: MORNING });
     expect((performance.now() - t) / 200).toBeLessThan(5);
   });
 });

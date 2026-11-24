@@ -25,7 +25,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'mobile', use: { ...devices['Pixel 7'], channel } },
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], channel }, testMatch: /commuter|map|pwa/ },
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'], channel },
+      testMatch: /commuter|map|pwa/,
+    },
   ],
   webServer: [
     {

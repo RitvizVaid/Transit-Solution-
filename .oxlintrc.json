@@ -10,6 +10,7 @@
     "react/exhaustive-deps": "warn",
     "react/react-in-jsx-scope": "off",
     "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-underscore-dangle": ["warn", { "allow": ["__transitMap", "__prompted"] }],
     "typescript/no-explicit-any": "error",
 
     "jsx-a11y/prefer-tag-over-role": "off",

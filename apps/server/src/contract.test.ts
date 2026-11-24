@@ -25,7 +25,13 @@ import { decodePolyline } from './services/geo.js';
 import { GTFS_DIR } from './test/fixtures.js';
 
 const app = await buildApp({
-  config: { gtfsDir: GTFS_DIR, simulateVehicles: false, simulateReports: false, otpUrl: undefined, demoTimeOfDay: '10:00' },
+  config: {
+    gtfsDir: GTFS_DIR,
+    simulateVehicles: false,
+    simulateReports: false,
+    otpUrl: undefined,
+    demoTimeOfDay: '10:00',
+  },
 });
 afterAll(() => app.close());
 
@@ -46,32 +52,42 @@ function checkLeg(l: Leg, where: string) {
   checkPlace(l.to, `${where}.to`);
   expect(isNum(l.durationSeconds) && l.durationSeconds >= 0, `${where}.durationSeconds`).toBe(true);
   expect(isNum(l.distanceMeters) && l.distanceMeters >= 0, `${where}.distanceMeters`).toBe(true);
-  expect(decodePolyline(l.geometryPolyline).length, `${where}.geometryPolyline`).toBeGreaterThanOrEqual(2);
+  expect(
+    decodePolyline(l.geometryPolyline).length,
+    `${where}.geometryPolyline`,
+  ).toBeGreaterThanOrEqual(2);
   if (l.mode === 'WALK') {
     expect(l.routeShortName, `${where} walk has no route`).toBeUndefined();
   } else {
     expect(isStr(l.routeShortName), `${where}.routeShortName`).toBe(true);
     expect(isHex(l.routeColor), `${where}.routeColor`).toBe(true);
-    expect(l.frequencyMinutes!.min <= l.frequencyMinutes!.max, `${where}.frequencyMinutes`).toBe(true);
+    expect(l.frequencyMinutes!.min <= l.frequencyMinutes!.max, `${where}.frequencyMinutes`).toBe(
+      true,
+    );
     if (l.boardingStandId !== undefined) expect(isStr(l.boardingStandId)).toBe(true);
   }
 }
 
-function checkItinerary(it: Itinerary, where: string) {
-  expect(isStr(it.id), `${where}.id`).toBe(true);
+function checkItinerary(itinerary: Itinerary, where: string) {
+  expect(isStr(itinerary.id), `${where}.id`).toBe(true);
   for (const k of ['durationSeconds', 'walkTimeSeconds', 'transitTimeSeconds'] as const) {
-    expect(isNum(it[k]) && it[k] >= 0, `${where}.${k}`).toBe(true);
+    expect(isNum(itinerary[k]) && itinerary[k] >= 0, `${where}.${k}`).toBe(true);
   }
-  expect(it.durationSeconds).toBeGreaterThanOrEqual(it.walkTimeSeconds + it.transitTimeSeconds);
-  expect(it.estimatedFare.currency).toBe('INR');
-  expect(isNum(it.estimatedFare.amount) && it.estimatedFare.amount >= 0).toBe(true);
-  expect((CONGESTION_LEVELS as readonly string[]).includes(it.congestionLevel), `${where}.congestionLevel`).toBe(true);
-  expect(it.legs.length).toBeGreaterThan(0);
-  it.legs.forEach((l, i) => checkLeg(l, `${where}.legs[${i}]`));
+  expect(itinerary.durationSeconds).toBeGreaterThanOrEqual(
+    itinerary.walkTimeSeconds + itinerary.transitTimeSeconds,
+  );
+  expect(itinerary.estimatedFare.currency).toBe('INR');
+  expect(isNum(itinerary.estimatedFare.amount) && itinerary.estimatedFare.amount >= 0).toBe(true);
+  expect(
+    (CONGESTION_LEVELS as readonly string[]).includes(itinerary.congestionLevel),
+    `${where}.congestionLevel`,
+  ).toBe(true);
+  expect(itinerary.legs.length).toBeGreaterThan(0);
+  itinerary.legs.forEach((l, i) => checkLeg(l, `${where}.legs[${i}]`));
   // Legs chain end-to-start.
-  for (let i = 1; i < it.legs.length; i++) {
-    expect(it.legs[i - 1]!.to.lat).toBeCloseTo(it.legs[i]!.from.lat, 4);
-    expect(it.legs[i - 1]!.to.lng).toBeCloseTo(it.legs[i]!.from.lng, 4);
+  for (let i = 1; i < itinerary.legs.length; i++) {
+    expect(itinerary.legs[i - 1]!.to.lat).toBeCloseTo(itinerary.legs[i]!.from.lat, 4);
+    expect(itinerary.legs[i - 1]!.to.lng).toBeCloseTo(itinerary.legs[i]!.from.lng, 4);
   }
 }
 
@@ -79,7 +95,9 @@ function checkStand(s: StandStatus) {
   expect(isStr(s.standId) && isStr(s.name)).toBe(true);
   expect(s.coordinates).toHaveLength(2);
   expect(s.coordinates[0]).toBeGreaterThan(70); // [lng, lat] order
-  expect(Number.isInteger(s.availableVehiclesEstimate) && s.availableVehiclesEstimate >= 0).toBe(true);
+  expect(Number.isInteger(s.availableVehiclesEstimate) && s.availableVehiclesEstimate >= 0).toBe(
+    true,
+  );
   expect((QUEUE_LEVELS as readonly string[]).includes(s.passengerQueueLevel)).toBe(true);
   expect(isNum(s.averageWaitMinutes) && s.averageWaitMinutes > 0).toBe(true);
   expect(isIso(s.lastUpdated)).toBe(true);
@@ -94,12 +112,15 @@ describe('§4 contract: GET /api/v1/plan', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json<PlanResponse>();
     expect(Object.keys(body)).toEqual(['itineraries']);
-    body.itineraries.forEach((it, i) => checkItinerary(it, `itineraries[${i}]`));
+    body.itineraries.forEach((itinerary, i) => checkItinerary(itinerary, `itineraries[${i}]`));
   });
 
   it('holds for every itinerary between a spread of pilot stops', async () => {
     const stops = (
-      await app.inject({ method: 'GET', url: '/api/v1/stops/nearby?lat=28.655&lng=77.23&radius=2000' })
+      await app.inject({
+        method: 'GET',
+        url: '/api/v1/stops/nearby?lat=28.655&lng=77.23&radius=2000',
+      })
     ).json<NearbyStopsResponse>().stops;
     expect(stops.length).toBeGreaterThan(15);
     let checked = 0;
@@ -113,8 +134,12 @@ describe('§4 contract: GET /api/v1/plan', () => {
           url: `/api/v1/plan?fromLat=${a.lat}&fromLng=${a.lng}&toLat=${b.lat}&toLng=${b.lng}&fromName=${encodeURIComponent(a.name)}`,
         });
         const body = res.json<PlanResponse>();
-        body.itineraries.forEach((it, k) => checkItinerary(it, `${a.id}>${b.id}[${k}]`));
-        if (body.itineraries[0]) expect(body.itineraries[0].legs[0]!.from.name).toBe(a.name);
+        body.itineraries.forEach((itinerary, k) =>
+          checkItinerary(itinerary, `${a.id}>${b.id}[${k}]`),
+        );
+        for (const itinerary of body.itineraries.slice(0, 1)) {
+          expect(itinerary.legs[0]!.from.name).toBe(a.name);
+        }
         checked += body.itineraries.length;
       }
     }
@@ -127,11 +152,15 @@ describe('§4 contract: stands, routes, live messages', () => {
     const all = (await app.inject({ method: 'GET', url: '/api/v1/stands' })).json<StandStatus[]>();
     expect(all.length).toBeGreaterThanOrEqual(10);
     all.forEach(checkStand);
-    checkStand((await app.inject({ method: 'GET', url: `/api/v1/stands/${all[0]!.standId}` })).json());
+    checkStand(
+      (await app.inject({ method: 'GET', url: `/api/v1/stands/${all[0]!.standId}` })).json(),
+    );
   });
 
   it('GET /api/v1/routes returns TransitRoute', async () => {
-    const routes = (await app.inject({ method: 'GET', url: '/api/v1/routes' })).json<TransitRoute[]>();
+    const routes = (await app.inject({ method: 'GET', url: '/api/v1/routes' })).json<
+      TransitRoute[]
+    >();
     for (const r of routes) {
       expect(isStr(r.id) && isStr(r.shortName)).toBe(true);
       expect(LEG_MODES.filter((m) => m !== 'WALK') as string[]).toContain(r.mode);

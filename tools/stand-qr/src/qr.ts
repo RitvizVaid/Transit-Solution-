@@ -11,7 +11,10 @@ export interface Stand {
 /** Marshalled stands (is_stand) from the corridor sources. */
 export function readStands(stopsGeojsonPath: string): Stand[] {
   const fc = JSON.parse(readFileSync(stopsGeojsonPath, 'utf8')) as {
-    features: { properties: { stop_id: string; name: string; is_stand?: boolean }; geometry: { coordinates: [number, number] } }[];
+    features: {
+      properties: { stop_id: string; name: string; is_stand?: boolean };
+      geometry: { coordinates: [number, number] };
+    }[];
   };
   return fc.features
     .filter((f) => f.properties.is_stand)
@@ -41,13 +44,23 @@ export function qrSvg(text: string): Promise<string> {
 }
 
 const esc = (s: string) =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  );
 
 /** One A4-printable HTML page with a card per stand. */
-export async function standSheet(stands: Stand[], webBase: string, driverBase: string): Promise<string> {
+export async function standSheet(
+  stands: Stand[],
+  webBase: string,
+  driverBase: string,
+): Promise<string> {
   const cards = await Promise.all(
     stands.map(async (s) => {
-      const [c, m] = await Promise.all([qrSvg(commuterUrl(webBase, s)), qrSvg(marshalUrl(driverBase, s))]);
+      const [c, m] = await Promise.all([
+        qrSvg(commuterUrl(webBase, s)),
+        qrSvg(marshalUrl(driverBase, s)),
+      ]);
       return `<section class="card" data-stand="${esc(s.id)}">
   <h2>${esc(s.name)}</h2>
   <div class="codes">

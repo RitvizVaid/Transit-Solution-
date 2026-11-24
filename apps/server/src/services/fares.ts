@@ -35,6 +35,9 @@ export function itineraryFare(rides: RideFare[]): Money {
   const currency = rides[0]?.model.currency ?? 'INR';
   return {
     currency,
-    amount: rides.reduce((sum, r) => sum + legFare(r.model, r.distanceMeters, r.fromZone, r.toZone), 0),
+    amount: rides.reduce(
+      (sum, r) => sum + legFare(r.model, r.distanceMeters, r.fromZone, r.toZone),
+      0,
+    ),
   };
 }

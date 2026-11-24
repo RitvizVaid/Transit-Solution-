@@ -24,7 +24,9 @@ const stands = readStands(values.stops!);
 const html = await standSheet(stands, values.web!, values.driver!);
 mkdirSync(dirname(values.out!), { recursive: true });
 writeFileSync(values.out!, html);
-console.log(`stand-qr: ${stands.length} stands → ${values.out}`);
+process.stdout.write(`stand-qr: ${stands.length} stands → ${values.out}\n`);
 if (values.web!.includes('localhost')) {
-  console.log('  note: links point at localhost; pass --web/--driver with your public URLs before printing');
+  process.stdout.write(
+    '  note: links point at localhost; pass --web/--driver with your public URLs before printing\n',
+  );
 }

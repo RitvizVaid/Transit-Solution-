@@ -1,13 +1,5 @@
 import { API } from './playwright.config';
-import {
-  expect,
-  KG_METRO,
-  planUrl,
-  RED_FORT,
-  sourceFeatures,
-  test,
-  waitForMap,
-} from './fixtures';
+import { expect, KG_METRO, planUrl, RED_FORT, sourceFeatures, test, waitForMap } from './fixtures';
 
 /** GAME_PLAN Contributor 2: map engine, route rendering, stand markers, live vehicles, picking. */
 test.describe('map (C2)', () => {
@@ -45,9 +37,13 @@ test.describe('map (C2)', () => {
   }) => {
     await page.goto(planUrl(KG_METRO, undefined, '&debug=map'));
     await waitForMap(page);
-    await expect.poll(async () => (await sourceFeatures(page, 'stands')).length).toBeGreaterThanOrEqual(10);
+    await expect
+      .poll(async () => (await sourceFeatures(page, 'stands')).length)
+      .toBeGreaterThanOrEqual(10);
     const colours = new Set((await sourceFeatures(page, 'stands')).map((f) => f.properties.color));
-    expect([...colours].every((c) => ['#10b981', '#f59e0b', '#e11d48'].includes(String(c)))).toBe(true);
+    expect([...colours].every((c) => ['#10b981', '#f59e0b', '#e11d48'].includes(String(c)))).toBe(
+      true,
+    );
 
     // Centre the Kashmere Gate stand and tap it.
     const point = await page.evaluate(async () => {
@@ -76,10 +72,16 @@ test.describe('map (C2)', () => {
   test('2.4 live vehicles appear and move along their routes', async ({ isolated: page }) => {
     await page.goto(planUrl(KG_METRO, undefined, '&debug=map'));
     await waitForMap(page);
-    await expect.poll(async () => (await sourceFeatures(page, 'vehicles')).length, { timeout: 10_000 }).toBeGreaterThan(3);
-    const before = JSON.stringify((await sourceFeatures(page, 'vehicles')).map((f) => f.geometry.coordinates));
+    await expect
+      .poll(async () => (await sourceFeatures(page, 'vehicles')).length, { timeout: 10_000 })
+      .toBeGreaterThan(3);
+    const before = JSON.stringify(
+      (await sourceFeatures(page, 'vehicles')).map((f) => f.geometry.coordinates),
+    );
     await page.waitForTimeout(3000);
-    const after = JSON.stringify((await sourceFeatures(page, 'vehicles')).map((f) => f.geometry.coordinates));
+    const after = JSON.stringify(
+      (await sourceFeatures(page, 'vehicles')).map((f) => f.geometry.coordinates),
+    );
     expect(after).not.toBe(before);
   });
 
@@ -129,6 +131,8 @@ test.describe('map (C2)', () => {
     await page.goto(planUrl(KG_METRO, undefined, '&debug=map'));
     await waitForMap(page);
     await page.getByRole('tab', { name: 'Nearby lines' }).click();
-    await expect.poll(async () => (await sourceFeatures(page, 'nearby'))[0]?.geometry.type).toBe('Polygon');
+    await expect
+      .poll(async () => (await sourceFeatures(page, 'nearby'))[0]?.geometry.type)
+      .toBe('Polygon');
   });
 });

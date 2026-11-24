@@ -70,8 +70,9 @@ export interface FeatureLike {
 
 export async function waitForMap(page: Page) {
   await page.waitForFunction(() => {
-    const m = (window as unknown as { __transitMap?: { loaded(): boolean; getSource(id: string): unknown } })
-      .__transitMap;
+    const m = (
+      window as unknown as { __transitMap?: { loaded(): boolean; getSource(id: string): unknown } }
+    ).__transitMap;
     return !!m && m.loaded() && !!m.getSource('route');
   });
 }

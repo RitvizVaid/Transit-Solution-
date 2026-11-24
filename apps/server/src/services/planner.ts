@@ -79,7 +79,12 @@ interface Ready {
   cost: number;
   via:
     | { kind: 'access'; access: Access }
-    | { kind: 'transfer'; fromStopId: string; walk: { walkM: number; walkSec: number }; arrived: Arrived };
+    | {
+        kind: 'transfer';
+        fromStopId: string;
+        walk: { walkM: number; walkSec: number };
+        arrived: Arrived;
+      };
 }
 
 /** Round-based search state: just got off a ride at a stop. */
@@ -228,7 +233,11 @@ export class Planner {
   ): Option | null {
     let ready = new Map<string, Ready>();
     for (const a of access.values()) {
-      ready.set(a.stopId, { stopId: a.stopId, cost: a.walkSec, via: { kind: 'access', access: a } });
+      ready.set(a.stopId, {
+        stopId: a.stopId,
+        cost: a.walkSec,
+        via: { kind: 'access', access: a },
+      });
     }
 
     for (let round = 1; round <= maxRides && ready.size; round++) {
@@ -247,7 +256,11 @@ export class Planner {
             const cost = rd.cost + wait + (sj.offsetSec - s.offsetSec);
             const cur = arrived.get(sj.stopId);
             if (!cur || cost < cur.cost) {
-              arrived.set(sj.stopId, { cost, ride: { pattern: p, route, board: i, alight: j, waitSec: wait }, ready: rd });
+              arrived.set(sj.stopId, {
+                cost,
+                ride: { pattern: p, route, board: i, alight: j, waitSec: wait },
+                ready: rd,
+              });
             }
           }
         });
@@ -256,7 +269,8 @@ export class Planner {
       let best: { total: number; arrived: Arrived; egress: Access } | null = null;
       for (const [stopId, a] of arrived) {
         const e = egress.get(stopId);
-        if (e && (!best || a.cost + e.walkSec < best.total)) best = { total: a.cost + e.walkSec, arrived: a, egress: e };
+        if (e && (!best || a.cost + e.walkSec < best.total))
+          best = { total: a.cost + e.walkSec, arrived: a, egress: e };
       }
       if (best) return this.reconstruct(best.arrived, best.egress, best.total);
 
@@ -268,7 +282,11 @@ export class Planner {
           const cost = a.cost + walk.walkSec + PLANNER.transferPenaltySec;
           const cur = next.get(near.id);
           if (!cur || cost < cur.cost) {
-            next.set(near.id, { stopId: near.id, cost, via: { kind: 'transfer', fromStopId: stopId, walk, arrived: a } });
+            next.set(near.id, {
+              stopId: near.id,
+              cost,
+              via: { kind: 'transfer', fromStopId: stopId, walk, arrived: a },
+            });
           }
         }
       }
