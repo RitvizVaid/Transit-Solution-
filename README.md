@@ -82,6 +82,18 @@ Or everything in Docker: `docker compose -f deploy/docker-compose.yml up --build
 `pnpm e2e` (Playwright mobile and desktop profiles).
 All run in CI with the Docker builds and a check that the committed GTFS matches its sources.
 
+## Covexcode usage at HACK WITH DELHI 4.0
+
+We used Covexcode (`deepseek-v4-flash`) to draft and review changes to Delhi
+service calendars, trip comparison, offline trip results, fare handling, and
+marshal reporting. We reviewed and tested the implemented changes in commit
+`192c582`. The follow-up batch reviewed the codebase and drafted candidate patches.
+
+Covexcode reported **20,001,786 cumulative tokens used** when the event allowance
+was exhausted. Our local ledger recorded **19,898,693 tokens**, including
+**9,886,012** in the follow-up batch. Organizers can verify the cumulative total
+against Covexcode’s event records.
+
 ## Docs
 
 - [Feature register](docs/ui-feature-register.md): current capabilities and planned work
