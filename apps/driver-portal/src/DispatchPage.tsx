@@ -232,7 +232,7 @@ function Reporter({
     if (busy !== null || !authorized) return;
     setBusy(index);
     navigator.vibrate?.(30);
-    const { item, persisted } = queue.enqueue({
+    const { item, persisted, reason } = queue.enqueue({
       reportId: crypto.randomUUID(),
       standId,
       kind: action.kind,
@@ -248,6 +248,8 @@ function Reporter({
       setFlash('The server rejected this report. Please check the stand and try again.');
     else if (result?.authorizationFailed)
       setFlash('Stand code expired. Enter a current code before reporting again.');
+    else if (reason === 'full')
+      setFlash('The report queue was full. Wait for pending reports to send, then submit again.');
     else if (!persisted) setFlash('Could not save this report. Reconnect and submit it again.');
     else setFlash('Saved on this device. Will send when connected.');
     // Short lock so one tap = one report, even with shaky hands.

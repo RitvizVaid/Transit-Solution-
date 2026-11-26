@@ -63,4 +63,8 @@ describe('TransitNetwork (pilot feed)', () => {
   it('returns nothing far from the network', () => {
     expect(net.nearbyStops({ lat: 28.4595, lng: 77.0266 }, 2000)).toEqual([]);
   });
+
+  it.each([-90, 90])('handles valid polar coordinates (%s°) with no nearby stops', (lat) => {
+    expect(net.nearbyStops({ lat, lng: 0 }, 2000)).toEqual([]);
+  });
 });

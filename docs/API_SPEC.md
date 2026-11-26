@@ -45,7 +45,11 @@ Up to 3 itineraries, fastest expected time first, at most one transfer.
   compares with its baseline (e.g. a full stand doubles each route's own wait). A route is
   only offered if it is still running when the rider reaches it. Waits are not legs:
   `duration − walkTime − transitTime` is the total expected wait.
+  The built-in planner applies the feed's weekly calendar and dated exceptions in IST.
+  Service times of 24:00 or later are measured from the original GTFS service day.
 - `Itinerary.estimatedFare`: sum of separate tickets per ride (informal modes don't share fares).
+  When `fareUnavailable` is true, at least one transit leg has no fare model. The numeric
+  field only reflects known legs for compatibility and must not be shown as the trip total.
 - `Itinerary.congestionLevel`: `low | moderate | high` from expected wait and the boarding stand's queue.
 - `Leg.mode`: `WALK | AUTO_RICKSHAW | E_RICKSHAW | SHARED_TAXI | MINIBUS | BUS`
 - `Leg.frequencyMinutes`: `{ min, max }` headway range.

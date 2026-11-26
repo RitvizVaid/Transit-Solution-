@@ -24,6 +24,7 @@ services:
       SIMULATE: ${SIMULATE:-true}
       # Empty = built-in planner. With the otp profile: http://otp:8080 (falls back if OTP is down).
       OTP_URL: ${OTP_URL:-}
+      OTP_INFORMAL_FEED_ID: ${OTP_INFORMAL_FEED_ID:-}
       # JSON object mapping stand IDs to private tokens; see docs/DEPLOYMENT.md.
       REPORT_TOKENS_JSON: ${REPORT_TOKENS_JSON:-}
       REPORT_DB_PATH: /app/state/reports.sqlite

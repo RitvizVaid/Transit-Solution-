@@ -1,3 +1,4 @@
+import type { PlanResponse } from '@transit/shared-types';
 import { API } from './playwright.config';
 import { CC_MARKET, expect, KG_METRO, REPORT_TOKENS, test, TIS_HAZARI, WEB } from './fixtures';
 
@@ -5,6 +6,86 @@ const planUrl = (from: string, to: string) =>
   `${WEB}/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
 test.describe('commuter web app', () => {
+  test.describe('trip comparison', () => {
+    test.use({ serviceWorkers: 'block' });
+
+    test('reorders options without changing the selected route', async ({ isolated: page }) => {
+      await page.route('**/api/v1/plan?*', async (route) => {
+        const response = await route.fetch();
+        const { itineraries } = (await response.json()) as PlanResponse;
+        const base = itineraries[0]!;
+        await route.fulfill({
+          json: {
+            itineraries: [
+              ['Option A', 900, 20, 80],
+              ['Option B', 700, 30, 100],
+              ['Option C', 800, 10, 120],
+              ['Option D', 1000, 0, 150],
+            ].map(([name, durationSeconds, amount, walkTimeSeconds]) => ({
+              ...base,
+              id: name,
+              durationSeconds,
+              estimatedFare: { currency: 'INR', amount },
+              fareUnavailable: name === 'Option D' ? true : undefined,
+              walkTimeSeconds,
+              legs: base.legs.map((leg) => ({ ...leg, routeShortName: name })),
+            })),
+          },
+        });
+      });
+      await page.goto(planUrl(KG_METRO, CC_MARKET));
+      const compare = page.getByRole('combobox', { name: 'Compare by' });
+      const cards = page.getByRole('article');
+      await expect(cards.first()).toContainText('Option A');
+      await expect(cards.filter({ hasText: 'Option D' })).toContainText('Fare unavailable');
+      for (const [criterion, first] of [
+        ['duration', 'Option B'],
+        ['fare', 'Option C'],
+        ['walking', 'Option A'],
+        ['recommended', 'Option A'],
+      ]) {
+        await compare.selectOption(criterion);
+        await expect(cards.first()).toContainText(first);
+        await expect(
+          cards.filter({ hasText: 'Option A' }).locator('button[aria-expanded]'),
+        ).toHaveAttribute('aria-expanded', 'true');
+      }
+      await compare.selectOption('fare');
+      await expect(cards.last()).toContainText('Option D');
+    });
+  });
+
+  test.describe('trip refresh', () => {
+    test.use({ serviceWorkers: 'block' });
+
+    test('labels a previously viewed trip as updating when returning to it', async ({
+      isolated: page,
+    }) => {
+      const pending = Promise.withResolvers<void>();
+      let requests = 0;
+      await page.route('**/api/v1/plan?*', async (route) => {
+        if (++requests > 1) await pending.promise;
+        await route.fallback().catch(() => undefined);
+      });
+      try {
+        await page.goto(planUrl(KG_METRO, CC_MARKET));
+        await expect(page.getByRole('article').first()).toContainText('KG-1');
+        const to = page.getByRole('combobox', { name: 'To' });
+        await to.fill('Red Fort');
+        await page.getByRole('option', { name: /Red Fort/ }).click();
+        await expect.poll(() => requests).toBe(2);
+        await to.fill('Chandni');
+        await page.getByRole('option', { name: /Chandni Chowk Market/ }).click();
+        await expect.poll(() => requests).toBe(3);
+        await expect(page.getByText('Updating…')).toBeVisible();
+        await expect(page.getByRole('article').first()).toContainText('KG-1');
+      } finally {
+        pending.resolve();
+      }
+      await expect(page.getByText('Updating…')).toBeHidden();
+    });
+  });
+
   test('a shared trip link shows itineraries with fares and step-by-step directions', async ({
     isolated: page,
   }) => {
@@ -79,11 +160,34 @@ test.describe('commuter web app', () => {
       }
     });
 
+    // Fetch under service-worker control, then remove the localStorage fallback.
+    await page.reload();
+    await expect(page.getByRole('article').first()).toContainText('KG-1');
+    await expect
+      .poll(() => page.evaluate(async () => (await (await caches.open('api-plan')).keys()).length))
+      .toBeGreaterThan(0);
+    await page.evaluate(async () => {
+      const cache = await caches.open('api-plan');
+      const [request] = await cache.keys();
+      const response = await cache.match(request!);
+      const headers = new Headers(response!.headers);
+      headers.set('date', new Date(Date.now() - 20 * 60_000).toUTCString());
+      await cache.put(request!, new Response(response!.body, { headers }));
+      localStorage.removeItem('transit.recentTrips.v1');
+    });
     await context.setOffline(true);
     await page.reload();
     await expect(page.getByText(/You.re offline/)).toBeVisible();
     await expect(page.getByRole('article').first()).toContainText('KG-1');
+    await expect(page.getByText('Saved 20 min ago')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('transit.recentTrips.v1'))).toBeNull();
     await context.setOffline(false);
+    await page.reload();
+    await expect(page.getByRole('article').first()).toContainText('KG-1');
+    await expect(page.getByText(/^Saved /)).toBeHidden();
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('transit.recentTrips.v1')))
+      .not.toBeNull();
   });
 
   test('works on a narrow phone and a desktop without horizontal scrolling', async ({

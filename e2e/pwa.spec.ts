@@ -68,6 +68,26 @@ test.describe('commuter app (C1)', () => {
     const closest = page.getByRole('region', { name: 'Closest line' });
     await expect(closest).toContainText('CL-6');
     await expect(closest).toContainText('Mori Gate');
+    await expect(closest).toContainText('Distances are measured in a straight line.');
+  });
+
+  test.describe('closest line recovery', () => {
+    test.use({ serviceWorkers: 'block' });
+
+    test('keeps the radius result and can retry the closest-line lookup', async ({
+      isolated: page,
+    }) => {
+      await page.route('**/api/v1/routes/nearest?*', (route) => route.fulfill({ status: 503 }), {
+        times: 1,
+      });
+      await page.goto(planUrl(TIS_HAZARI));
+      await page.getByRole('tab', { name: 'Nearby lines' }).click();
+      const alert = page.getByRole('alert').filter({ hasText: 'Could not load the closest line.' });
+      await expect(alert).toBeVisible();
+      await expect(page.getByText(/No lines stop within/)).toBeVisible();
+      await alert.getByRole('button', { name: 'Try again' }).click();
+      await expect(page.getByRole('region', { name: 'Closest line' })).toBeVisible();
+    });
   });
 
   test('1.5 install prompt appears after a successful search and triggers the browser prompt', async ({

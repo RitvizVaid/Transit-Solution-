@@ -74,8 +74,12 @@ interface OtpResponse {
   errors?: { message: string }[];
 }
 
-/** "1:KG-1" → "KG-1" */
-const localId = (gtfsId: string | undefined) => gtfsId?.split(':').slice(1).join(':') || gtfsId;
+function localId(gtfsId: string | undefined, feedId?: string): string | undefined {
+  if (!gtfsId) return undefined;
+  const separator = gtfsId.indexOf(':');
+  if (feedId && (separator === -1 || gtfsId.slice(0, separator) !== feedId)) return undefined;
+  return gtfsId.slice(separator + 1) || undefined;
+}
 
 export class OtpClient {
   constructor(
@@ -83,7 +87,7 @@ export class OtpClient {
     private readonly net: TransitNetwork,
     private readonly stands?: StandStore,
     private readonly fetchImpl: typeof fetch = fetch,
-    private readonly timeoutMs = 4000,
+    private readonly options: { timeoutMs?: number; informalFeedId?: string } = {},
   ) {}
 
   async plan(
@@ -106,7 +110,7 @@ export class OtpClient {
           time: local.slice(11, 16),
         },
       }),
-      signal: AbortSignal.timeout(this.timeoutMs),
+      signal: AbortSignal.timeout(this.options.timeoutMs ?? 4000),
     });
     if (!res.ok) throw new Error(`OTP responded ${res.status}`);
     const body = (await res.json()) as OtpResponse;
@@ -141,9 +145,10 @@ export class OtpClient {
       };
       if (!l.transitLeg) return { mode: 'WALK' as const, ...base };
 
-      const route = this.net.routes.get(localId(l.route?.gtfsId) ?? '');
-      const boardStop = this.net.stops.get(localId(l.from.stop?.gtfsId) ?? '');
-      const alightStop = this.net.stops.get(localId(l.to.stop?.gtfsId) ?? '');
+      const feedId = this.options.informalFeedId;
+      const route = this.net.routes.get(localId(l.route?.gtfsId, feedId) ?? '');
+      const boardStop = route && this.net.stops.get(localId(l.from.stop?.gtfsId, feedId) ?? '');
+      const alightStop = route && this.net.stops.get(localId(l.to.stop?.gtfsId, feedId) ?? '');
       if (route) {
         rides.push({
           model: route.fare,
@@ -166,10 +171,9 @@ export class OtpClient {
       };
     });
 
-    const transitTime = legs
-      .filter((l) => l.mode !== 'WALK')
-      .reduce((s, l) => s + l.durationSeconds, 0);
-    const firstRide = legs.find((l) => l.mode !== 'WALK');
+    const transitLegs = legs.filter((l) => l.mode !== 'WALK');
+    const transitTime = transitLegs.reduce((s, l) => s + l.durationSeconds, 0);
+    const firstRide = transitLegs[0];
     const stand = firstRide?.boardingStandId
       ? this.stands?.get(firstRide.boardingStandId)
       : undefined;
@@ -186,6 +190,7 @@ export class OtpClient {
       walkTimeSeconds: Math.round(it.walkTime),
       transitTimeSeconds: transitTime,
       estimatedFare: rides.length ? itineraryFare(rides) : { currency: 'INR', amount: 0 },
+      ...(rides.length < transitLegs.length && { fareUnavailable: true }),
       congestionLevel: congestion,
       legs,
     };

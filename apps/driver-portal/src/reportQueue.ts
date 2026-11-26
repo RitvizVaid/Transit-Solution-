@@ -1,8 +1,8 @@
 import type { StandReport } from '@transit/shared-types';
 
 /**
- * Reports are never lost to a bad signal: each one goes into a persistent queue
- * first, then the queue is flushed in order. A report keeps its original
+ * Reports are saved on the device when storage is available, then flushed in order.
+ * A report keeps its original
  * `reportedAt`, so a late delivery still lands at the right time on the server.
  */
 export interface QueuedReport {
@@ -50,20 +50,26 @@ export class ReportQueue {
 
   private save(items: QueuedReport[]): boolean {
     try {
-      this.store?.setItem(KEY, JSON.stringify(items.slice(-MAX_QUEUE)));
+      this.store?.setItem(KEY, JSON.stringify(items));
       return this.store !== null;
     } catch {
       return false;
     }
   }
 
-  enqueue(report: StandReport): { item: QueuedReport; persisted: boolean } {
+  enqueue(report: StandReport): {
+    item: QueuedReport;
+    persisted: boolean;
+    reason?: 'full';
+  } {
     const item = {
       id: report.reportId,
       report,
       attempts: 0,
     };
-    return { item, persisted: this.save([...this.list(), item]) };
+    const queued = this.list();
+    if (queued.length >= MAX_QUEUE) return { item, persisted: false, reason: 'full' };
+    return { item, persisted: this.save([...queued, item]) };
   }
 
   /**
@@ -80,13 +86,9 @@ export class ReportQueue {
     if (this.flushing) return empty();
     this.flushing = true;
     try {
-      const all = this.list();
       const result = empty();
-      const remaining: QueuedReport[] = [];
-      const active = all.filter((item) => item.report.standId === standId);
-      for (const item of all) {
-        if (item.report.standId !== standId) remaining.push(item);
-      }
+      const active = this.list(standId);
+      let retryId: string | undefined;
 
       const fresh = active.filter((item) => {
         if (this.now() - Date.parse(item.report.reportedAt) < MAX_AGE_MS) return true;
@@ -94,17 +96,15 @@ export class ReportQueue {
         return false;
       });
 
-      for (let index = 0; index < fresh.length; index++) {
-        const item = fresh[index]!;
+      for (const item of fresh) {
         const outcome = await send(item.report).catch((): SendResult => ({ status: 'retry' }));
         if (outcome.status === 'retry') {
-          remaining.push({ ...item, attempts: item.attempts + 1 }, ...fresh.slice(index + 1));
+          retryId = item.id;
           break;
         }
         if (outcome.status === 'ok') result.deliveredIds.push(item.id);
         else if (outcome.reason === 'authorization') {
           result.authorizationFailed = true;
-          remaining.push(item, ...fresh.slice(index + 1));
           break;
         } else if (outcome.reason === 'expired') result.expiredIds.push(item.id);
         else {
@@ -112,7 +112,19 @@ export class ReportQueue {
         }
       }
 
-      this.save(remaining);
+      // Reports may have been added while the network request was pending.
+      const completed = new Set([
+        ...result.deliveredIds,
+        ...result.rejectedIds,
+        ...result.expiredIds,
+      ]);
+      this.save(
+        this.list().flatMap((item) => {
+          if (item.report.standId !== standId) return [item];
+          if (completed.has(item.id)) return [];
+          return [item.id === retryId ? { ...item, attempts: item.attempts + 1 } : item];
+        }),
+      );
       return result;
     } finally {
       this.flushing = false;

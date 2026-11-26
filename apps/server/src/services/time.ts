@@ -1,10 +1,16 @@
 /** India has one time zone and no DST, so a fixed offset is exact. */
 export const IST_OFFSET_SEC = 5.5 * 3600;
+export const DAY_SECONDS = 86_400;
+
+/** Index of the current Delhi calendar day, with 1970-01-01 as day zero. */
+export function localDayIndex(date: Date): number {
+  return Math.floor((date.getTime() / 1000 + IST_OFFSET_SEC) / DAY_SECONDS);
+}
 
 /** Seconds since local (IST) midnight for an instant. */
 export function localSecondsOfDay(date: Date): number {
   const s = Math.floor(date.getTime() / 1000) + IST_OFFSET_SEC;
-  return ((s % 86400) + 86400) % 86400;
+  return ((s % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
 }
 
 /**

@@ -11,7 +11,8 @@ import type { NetworkRoute, Pattern, TransitNetwork } from '../gtfs/network.js';
 import { itineraryFare } from './fares.js';
 import { encodePolyline, haversineMeters } from './geo.js';
 import type { StandStore } from './stands.js';
-import { isWithin, localSecondsOfDay } from './time.js';
+import { serviceRuns } from '../gtfs/serviceCalendar.js';
+import { DAY_SECONDS, localDayIndex, localSecondsOfDay } from './time.js';
 
 export interface PlanOptions {
   departAt?: Date;
@@ -114,10 +115,21 @@ export class Planner {
   ) {}
 
   plan(from: LatLng, to: LatLng, opts: PlanOptions = {}): PlanResponse {
-    const nowSec = localSecondsOfDay(opts.departAt ?? new Date());
+    const departure = opts.departAt ?? new Date();
+    const nowSec = localSecondsOfDay(departure);
+    const departureDay = localDayIndex(departure);
     /** Is the route running `afterSec` seconds from departure (when the rider gets to it)? */
-    const runningAt = (p: Pattern, afterSec: number) =>
-      isWithin(Math.round(nowSec + afterSec) % 86400, p.serviceStartSec, p.serviceEndSec);
+    const runningAt = (p: Pattern, afterSec: number) => {
+      const absoluteSeconds = Math.round(nowSec + afterSec);
+      const day = departureDay + Math.floor(absoluteSeconds / DAY_SECONDS);
+      const seconds = absoluteSeconds % DAY_SECONDS;
+      const firstOffset = Math.max(0, Math.ceil((p.serviceStartSec - seconds) / DAY_SECONDS));
+      const lastOffset = Math.floor((p.serviceEndSec - seconds) / DAY_SECONDS);
+      for (let offset = firstOffset; offset <= lastOffset; offset++) {
+        if (serviceRuns(p.calendar, day - offset)) return true;
+      }
+      return false;
+    };
 
     const access = this.accessMap(from);
     const egress = this.accessMap(to);
@@ -214,21 +226,21 @@ export class Planner {
     const toPlace: NamedPlace = { name: opts.toName || 'Destination', ...to };
     const itineraries = kept.map((o) => this.toItinerary(o, fromPlace, toPlace));
     if (itineraries.length > 0) return { itineraries };
-    return { itineraries, noRouteReason: this.whyNoRoute(access, egress, nowSec) };
+    return { itineraries, noRouteReason: this.whyNoRoute(access, egress, runningAt) };
   }
 
   /** The most specific reason the search came back empty that the data can support. */
   private whyNoRoute(
     access: Map<string, Access>,
     egress: Map<string, Access>,
-    nowSec: number,
+    runningAt: (pattern: Pattern, afterSeconds: number) => boolean,
   ): NoRouteReason {
     if (access.size === 0) return 'no_stops_near_origin';
     if (egress.size === 0) return 'no_stops_near_destination';
     const serving = (stops: Map<string, Access>) =>
       [...stops.keys()].flatMap((id) => (this.net.servedBy.get(id) ?? []).map((x) => x.pattern));
     const near = [...serving(access), ...serving(egress)];
-    if (!near.some((p) => isWithin(nowSec, p.serviceStartSec, p.serviceEndSec))) {
+    if (!near.some((p) => runningAt(p, 0))) {
       return 'outside_service_hours';
     }
     return 'no_connection';

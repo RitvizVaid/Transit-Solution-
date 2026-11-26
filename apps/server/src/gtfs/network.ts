@@ -10,8 +10,9 @@ import {
   type TransitRoute,
   type VehicleMode,
 } from '@transit/shared-types';
-import { haversineMeters, MeasuredLine } from '../services/geo.js';
+import { EARTH_RADIUS_M, haversineMeters, MeasuredLine } from '../services/geo.js';
 import { parseCsv } from './csv.js';
+import { readServiceCalendars, type ServiceCalendar } from './serviceCalendar.js';
 
 export interface NetworkStop extends Stop {
   isStand: boolean;
@@ -45,12 +46,14 @@ export interface Pattern {
   serviceStartSec: number;
   serviceEndSec: number;
   headwaySec: number;
+  calendar?: ServiceCalendar;
 }
 
 const toSecs = (t: string) => {
   const [h = 0, m = 0, s = 0] = t.split(':').map(Number);
   return h * 3600 + m * 60 + s;
 };
+const FREQUENCY_TIME = /^\d{1,2}:[0-5]\d:[0-5]\d$/;
 const hhmm = (secs: number) =>
   `${String(Math.floor(secs / 3600)).padStart(2, '0')}:${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}`;
 
@@ -132,8 +135,16 @@ export class TransitNetwork {
         throw new Error('Unsupported GTFS: exact scheduled frequency trips');
       }
       const headway = Number(frequency.headway_secs);
-      if (!Number.isFinite(headway) || headway <= 0) {
-        throw new Error('Invalid GTFS: frequency headway must be positive');
+      if (!Number.isSafeInteger(headway) || headway <= 0) {
+        throw new Error('Invalid GTFS: frequency headway must be a positive integer');
+      }
+      const { start_time: start = '', end_time: end = '' } = frequency;
+      if (
+        !FREQUENCY_TIME.test(start) ||
+        !FREQUENCY_TIME.test(end) ||
+        toSecs(end) <= toSecs(start)
+      ) {
+        throw new Error('Invalid GTFS frequency window');
       }
       freqByTrip.set(tripId, frequency);
     }
@@ -142,6 +153,16 @@ export class TransitNetwork {
       throw new Error(
         'Unsupported GTFS: scheduled trips without frequencies cannot be used by the built-in planner',
       );
+    }
+    const hasCalendar = ['calendar.txt', 'calendar_dates.txt'].some((name) =>
+      existsSync(join(dir, name)),
+    );
+    const serviceCalendars = readServiceCalendars(
+      read('calendar.txt', false),
+      read('calendar_dates.txt', false),
+    );
+    if (hasCalendar && tripRows.some((trip) => !serviceCalendars.has(trip.service_id ?? ''))) {
+      throw new Error('Invalid GTFS: trip references an unknown service calendar');
     }
     const shapes = new Map<string, { seq: number; p: LatLng }[]>();
     for (const s of read('shapes.txt', false)) {
@@ -217,6 +238,7 @@ export class TransitNetwork {
         serviceStartSec: toSecs(freq.start_time!),
         serviceEndSec: toSecs(freq.end_time!),
         headwaySec: Number(freq.headway_secs),
+        calendar: serviceCalendars.get(trip.service_id ?? ''),
       });
     }
 
@@ -266,29 +288,38 @@ export class TransitNetwork {
 
   /** Stops within `radiusM`, nearest first. Uses the grid index to avoid scanning everything. */
   nearbyStops(point: LatLng, radiusM: number): NearbyStop[] {
-    const dLat = radiusM / 111_320;
-    const dLng = radiusM / (111_320 * Math.cos((point.lat * Math.PI) / 180));
+    const radians = radiusM / EARTH_RADIUS_M;
+    const dLat = (radians * 180) / Math.PI;
+    const longitudeRatio = Math.sin(radians) / Math.cos((point.lat * Math.PI) / 180);
+    const dLng = (Math.asin(Math.min(1, longitudeRatio)) * 180) / Math.PI;
     const out: NearbyStop[] = [];
-    for (
-      let la = Math.floor((point.lat - dLat) / CELL);
-      la <= Math.floor((point.lat + dLat) / CELL);
-      la++
+    const include = (stop: NetworkStop) => {
+      const distance = haversineMeters(point, stop);
+      if (!Number.isFinite(distance) || distance > radiusM) return;
+      const { isStand: _isStand, zoneId: _zoneId, ...publicStop } = stop;
+      out.push({
+        ...publicStop,
+        routeIds: [...stop.routeIds],
+        distanceMeters: Math.round(distance),
+      });
+    };
+    const minLat = Math.floor((point.lat - dLat) / CELL);
+    const maxLat = Math.floor((point.lat + dLat) / CELL);
+    const minLng = Math.floor((point.lng - dLng) / CELL);
+    const maxLng = Math.floor((point.lng + dLng) / CELL);
+    const cells = (maxLat - minLat + 1) * (maxLng - minLng + 1);
+    // Near a pole or the date line, scanning is simpler and avoids a large cell sweep.
+    if (
+      longitudeRatio >= 1 ||
+      cells > this.stops.size ||
+      point.lng - dLng <= -180 ||
+      point.lng + dLng >= 180
     ) {
-      for (
-        let ln = Math.floor((point.lng - dLng) / CELL);
-        ln <= Math.floor((point.lng + dLng) / CELL);
-        ln++
-      ) {
-        for (const stop of this.grid.get(`${la}:${ln}`) ?? []) {
-          const d = haversineMeters(point, stop);
-          if (d <= radiusM) {
-            const { isStand: _isStand, zoneId: _zoneId, ...publicStop } = stop;
-            out.push({
-              ...publicStop,
-              routeIds: [...stop.routeIds],
-              distanceMeters: Math.round(d),
-            });
-          }
+      for (const stop of this.stops.values()) include(stop);
+    } else {
+      for (let la = minLat; la <= maxLat; la++) {
+        for (let ln = minLng; ln <= maxLng; ln++) {
+          for (const stop of this.grid.get(`${la}:${ln}`) ?? []) include(stop);
         }
       }
     }

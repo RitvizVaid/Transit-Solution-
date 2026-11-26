@@ -103,7 +103,11 @@ export async function buildApp({ config: overrides, fetchImpl, now, ...opts }: B
         reportsPerStand: perMinute(config.rateLimits.reportsPerStand),
       }
     : null;
-  const otp = config.otpUrl ? new OtpClient(config.otpUrl, network, stands, fetchImpl) : undefined;
+  const otp = config.otpUrl
+    ? new OtpClient(config.otpUrl, network, stands, fetchImpl, {
+        informalFeedId: config.otpInformalFeedId,
+      })
+    : undefined;
   const planner = new PlanService(new Planner(network, stands), otp, app.log);
   stands.on('change', (s) => hub.publishStand(s));
   const serviceNow = serviceClock(config.demoTimeOfDay);

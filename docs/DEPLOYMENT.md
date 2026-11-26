@@ -54,6 +54,7 @@ The API needs:
 | `TRUST_PROXY`         | default `true` (client IP from `X-Forwarded-For`, needed behind nginx / Render for per-IP limits); set `false` if the API is exposed directly |
 | `RATE_LIMIT`          | default on; `off` only for local end-to-end tests             |
 | `OTP_URL`             | optional, see below                                           |
+| `OTP_INFORMAL_FEED_ID` | OTP feed namespace of the bundled informal network when using a mixed graph |
 | `GTFS_DIR`            | already set in the image; rebuild after `pnpm data:build`    |
 | `DELHI_OTD_API_KEY`   | optional API-server secret for Delhi bus positions; unset disables polling |
 
@@ -101,6 +102,11 @@ networks:
 
 If OTP is unreachable or returns nothing, the API falls back to the built-in planner and
 says so in the `x-planner` response header.
+
+For an OTP graph with multiple feeds, set `OTP_INFORMAL_FEED_ID` to the namespace OTP
+actually assigns to the bundled informal feed. Check the prefix of its scoped `gtfsId`
+values before enabling mixed routing. Only that namespace supplies local fare models and
+stand links. The unset option preserves the existing single-feed setup.
 
 ## Updating the network
 

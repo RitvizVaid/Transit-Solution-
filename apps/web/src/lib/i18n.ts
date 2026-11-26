@@ -40,14 +40,23 @@ const HI: Record<string, string> = {
   // Results
   '1 way to go': 'जाने का 1 तरीका',
   '{n} ways to go': 'जाने के {n} तरीके',
+  'Compare by': 'तुलना का आधार',
+  Recommended: 'सुझाया गया क्रम',
+  Fastest: 'सबसे तेज़',
+  'Lowest estimated fare': 'सबसे कम अनुमानित किराया',
+  'Fare unavailable': 'किराया उपलब्ध नहीं है',
+  'Least walking': 'सबसे कम पैदल चलना',
   'Updating…': 'अपडेट हो रहा है…',
   'Saved {time}': 'सेव किया गया: {time}',
+  'Saved plan': 'सेव किया गया यात्रा प्लान',
   "We couldn't reach the route planner.": 'रूट प्लानर से संपर्क नहीं हो सका।',
   "You're offline and this trip isn't saved on your phone yet.":
     'आप ऑफ़लाइन हैं और यह यात्रा अभी आपके फ़ोन में सेव नहीं है।',
   'Try again': 'फिर से कोशिश करें',
   'Search wider': 'और दूर तक खोजें',
   'Closest line': 'सबसे पास की लाइन',
+  'Could not load the closest line.': 'सबसे पास की लाइन की जानकारी नहीं मिल सकी।',
+  'Distances are measured in a straight line.': 'दूरियाँ सीधी रेखा में मापी गई हैं।',
   'Fares and times are estimates; confirm the fare with the driver. Waits use a stand marshal’s report when one is recent, otherwise how often the route usually runs.':
     'किराया और समय अनुमान हैं; किराया ड्राइवर से पक्का कर लें। हाल की स्टैंड रिपोर्ट हो तो इंतज़ार उसी से बताया जाता है, वरना इस पर कि रूट आम तौर पर कितनी बार चलता है।',
   'Where are you going?': 'आप कहाँ जा रहे हैं?',
@@ -63,8 +72,8 @@ const HI: Record<string, string> = {
     'इस ऐप को पता कोई भी रूट आपकी शुरुआत की जगह से पैदल दूरी पर नहीं रुकता। पास की किसी मशहूर जगह या मुख्य सड़क से शुरू करके देखें।',
   'None of the routes this app knows stop within a short walk of your destination. Try a nearby landmark or main road.':
     'इस ऐप को पता कोई भी रूट आपकी मंज़िल से पैदल दूरी पर नहीं रुकता। पास की कोई मशहूर जगह या मुख्य सड़क चुनकर देखें।',
-  "The routes near these places usually aren't running at this hour. Try again during the day.":
-    'इन जगहों के पास के रूट आम तौर पर इस समय नहीं चलते। दिन में फिर से देखें।',
+  'The routes near these places are outside their service schedule. Try a different time or day.':
+    'इन जगहों के पास के रूट इस समय नहीं चलते। किसी और समय या दिन फिर से कोशिश करें।',
   "We couldn't find a way between these places with the routes this app knows. Other shared autos or buses may still run here.":
     'इस ऐप को पता रूट से इन जगहों के बीच कोई रास्ता नहीं मिला। हो सकता है यहाँ दूसरे शेयर्ड ऑटो या बसें फिर भी चलती हों।',
 

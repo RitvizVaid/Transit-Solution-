@@ -63,6 +63,40 @@ the markers do not identify routes or destinations and are not linked to searche
 
 ## Workflow
 
+UI-18 local update: the production service worker marks plan cache hits and passes through
+the original response date when available. The trip hook labels these hits as saved and
+does not renew Recent Trips from them. The production-build Playwright offline test passed
+in Chrome with the mobile and desktop profiles after clearing the localStorage fallback.
+Tests also verified that cache age survives reload, an online reload refreshes the plan,
+and a separately hosted local API works offline. Slow-network timeout and hosted
+deployment remain unverified.
+
+UI-19 local update: the Nearby tab reports a failed closest-line lookup separately from
+the radius result, offers retry, and labels distances as straight-line measurements.
+Chrome mobile and desktop tests passed for the ordinary fallback and recovery from a
+mocked HTTP 503. Boarding feasibility remains a field-validation item.
+
+UI-02 local update: the trip results offer comparison controls for time, estimated fare,
+and walking. Each control reorders the returned set without changing selection or breaking
+ties in the planner's order. Chrome mobile and desktop tests passed. Route generation
+and estimate confidence remain separate roadmap work.
+
+UI-08 local update: a flush now reconciles completed and retryable reports with the
+latest stored queue, preserving reports added while a send is pending. Added queue
+regressions for successful and retryable sends. The offline-to-online marshal browser
+check passed in a focused two-worker run. A full queue now preserves earlier reports and
+shows an explicit warning. Mobile Chrome passed the full-offline-queue scenario.
+
+UI-14 local update: the built-in planner and simulator now honor GTFS weekly service and
+dated exceptions in IST, including overnight frequency windows. A fixture covers weekly
+service, added and removed dates, overnight service, and expiry. Multiple frequency windows
+and scheduled trips are still rejected by the built-in loader.
+
+UI-20 local preparation: mixed-feed OTP graphs can be configured with the trusted
+informal namespace so other feeds cannot inherit local fares and stands by ID collision.
+Unknown and partial fares are flagged as unavailable, including in fare comparison.
+The Delhi bus feed has not been connected to the planner.
+
 Pick one bounded ID, inspect the linked code and related feature, agree on behavior and
 contract, then implement on a branch. Add focused tests and an acceptance record for
 what actually ran. Update both registers with the PR and evidence; keep field and

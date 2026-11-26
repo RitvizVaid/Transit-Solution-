@@ -56,6 +56,24 @@ export default defineConfig({
               networkTimeoutSeconds: 6,
               expiration: { maxEntries: 30, maxAgeSeconds: 7 * 24 * 3600 },
               cacheableResponse: { statuses: [200] },
+              plugins: [
+                {
+                  // Workbox serializes this callback into the generated worker.
+                  cachedResponseWillBeUsed: async ({ cachedResponse }) => {
+                    if (!cachedResponse) return cachedResponse;
+                    const headers = new Headers(cachedResponse.headers);
+                    headers.set('x-transit-plan-cache', 'hit');
+                    const savedAt = Date.parse(headers.get('date') ?? '');
+                    if (Number.isFinite(savedAt)) {
+                      headers.set('x-transit-plan-saved-at', new Date(savedAt).toISOString());
+                    }
+                    return new Response(cachedResponse.body, {
+                      status: cachedResponse.status,
+                      headers,
+                    });
+                  },
+                },
+              ],
             },
           },
           {

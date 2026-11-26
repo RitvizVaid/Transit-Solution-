@@ -9,15 +9,15 @@ export type NearbyRadius = (typeof NEARBY_RADII)[number];
 export type NearbyState =
   | { status: 'idle' }
   | { status: 'loading'; lines: NearbyLine[] }
-  /** `nearest`: closest corridor, only looked up when nothing is within the radius. */
-  | { status: 'ok'; lines: NearbyLine[]; nearest: NearestLineResponse | null }
+  /** `nearest`: undefined when lookup failed, null when no fallback is needed or available. */
+  | { status: 'ok'; lines: NearbyLine[]; nearest: NearestLineResponse | null | undefined }
   | { status: 'error' };
 
 interface Answer {
   key: string;
   ok: boolean;
   lines: NearbyLine[];
-  nearest: NearestLineResponse | null;
+  nearest: NearestLineResponse | null | undefined;
 }
 
 export function useNearbyLines(center: LatLng | null, radius: NearbyRadius, enabled: boolean) {
@@ -35,10 +35,10 @@ export function useNearbyLines(center: LatLng | null, radius: NearbyRadius, enab
     Promise.all([fetchNearbyStops({ lat, lng, radius }, ctrl.signal), fetchRoutes()])
       .then(async ([{ stops }, routes]) => {
         const lines = groupNearbyLines(stops, routes);
-        // Nothing in range: snap to the closest corridor so the commuter knows where to walk.
+        // Nothing in range: look for the closest mapped corridor.
         const nearest = lines.length
           ? null
-          : await fetchNearestLine({ lat, lng }, ctrl.signal).catch(() => null);
+          : await fetchNearestLine({ lat, lng }, ctrl.signal).catch(() => undefined);
         if (!ctrl.signal.aborted) setAnswer({ key, ok: true, lines, nearest });
       })
       .catch((err: unknown) => {

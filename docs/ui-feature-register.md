@@ -57,6 +57,25 @@ canvas markers and Hindi map text remain unverified. These UI changes are not ye
 
 ## Updating this register
 
+F-21 local update: production service-worker plan hits now carry cache provenance and
+the original response date where available. The commuter planner shows the saved state
+without renewing history on a cache hit. The Chrome mobile and desktop offline-reload
+tests passed with Recent Trips cleared. The browser checks also passed for preserving
+response age, refreshing after reconnect, and cross-origin local API caching. Slow-network
+timeout and hosted verification remain open.
+
+F-22 local update: the Nearby tab labels straight-line distances and offers retry after
+a failed closest-line lookup. Four focused Chrome browser cases passed across mobile
+and desktop. The mapped distances do not establish walkability or boarding access.
+
+F-02 local update: commuters can reorder returned options by duration, estimated fare,
+or walking time and restore the recommended order. Reordering preserves the selected
+itinerary. Mobile and desktop Chrome tests passed with a controlled three-option plan.
+
+F-18 local update: built-in trip planning and vehicle simulation now respect weekly
+calendars, added and removed service dates, and overnight service in IST. Compatibility
+tests use a small reference feed. Scheduled trips still require a timetable-aware engine.
+
 For each completed increment, link its deficiency ID, PR and a short acceptance record:
 revision tested, commands/results, browser or API scenarios, fixtures versus real inputs,
 and what was not tested. Track deployed or field acceptance separately from local/CI results.

@@ -239,6 +239,7 @@ describe('OTP integration', () => {
       net,
       undefined,
       fetchImpl as unknown as typeof fetch,
+      { informalFeedId: '1' },
     );
     const { itineraries } = await otp.plan(PLACES.kgMetro, PLACES.ccMarket, {
       departAt: MORNING,
@@ -260,6 +261,43 @@ describe('OTP integration', () => {
       routeColor: '#16A34A',
     });
     expect(it0.estimatedFare.amount).toBe(20);
+    expect(it0.fareUnavailable).toBeUndefined();
+  });
+
+  it.each([false, true])('marks unmatched bus fares unavailable (mixed=%s)', async (mixed) => {
+    const body = structuredClone(otpBody);
+    const itinerary = body.data.plan.itineraries[0]!;
+    const ride = itinerary.legs.find((leg) => leg.route !== null)!;
+    const bus = {
+      ...ride,
+      route: { gtfsId: 'delhi:DTC-101', shortName: '101', color: '137547' },
+    };
+    itinerary.legs = mixed ? [...itinerary.legs, bus] : [itinerary.legs[0]!, bus];
+    const otp = new OtpClient('http://otp:8080', net, undefined, async () => Response.json(body));
+
+    const plan = await otp.plan(PLACES.kgMetro, PLACES.ccMarket, { departAt: MORNING });
+    expect(plan.itineraries[0]).toMatchObject({
+      fareUnavailable: true,
+      estimatedFare: { currency: 'INR', amount: mixed ? 20 : 0 },
+    });
+  });
+
+  it('does not link another feed’s route and stops to matching informal IDs', async () => {
+    const body = structuredClone(otpBody);
+    const ride = body.data.plan.itineraries[0]!.legs.find((leg) => leg.route !== null)!;
+    ride.route.gtfsId = 'scheduled:KG-1';
+    ride.from.stop.gtfsId = 'scheduled:kg-auto-1';
+    ride.to.stop.gtfsId = 'scheduled:ccm-auto-1';
+    const otp = new OtpClient('http://otp:8080', net, undefined, async () => Response.json(body), {
+      informalFeedId: '1',
+    });
+    const { itineraries } = await otp.plan(PLACES.kgMetro, PLACES.ccMarket, { departAt: MORNING });
+    const bus = itineraries[0]!.legs[1]!;
+    expect(bus.mode).toBe('BUS');
+    expect(bus.routeId).toBeUndefined();
+    expect(bus.fromStopId).toBeUndefined();
+    expect(bus.boardingStandId).toBeUndefined();
+    expect(itineraries[0]!.fareUnavailable).toBe(true);
   });
 
   it('falls back to the built-in planner when OTP fails', async () => {

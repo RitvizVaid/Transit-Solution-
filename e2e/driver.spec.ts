@@ -61,4 +61,40 @@ test.describe('driver / marshal portal', () => {
     await page.getByRole('button', { name: 'Choose a stand' }).click();
     await expect(page.getByRole('heading', { name: 'Choose your stand' })).toBeVisible();
   });
+
+  test('a full offline queue warns the marshal and keeps earlier reports', async ({
+    page,
+    context,
+  }) => {
+    await page.goto(`${DRIVER}/?stand=odrs-1`);
+    await authorize(page, 'odrs-1');
+    const action = page.getByRole('button', { name: /No passengers/ });
+    await expect(action).toBeEnabled();
+    await context.setOffline(true);
+    const ids = await page.evaluate(() => {
+      const reports = Array.from({ length: 50 }, (_, index) => {
+        const id = `offline-queue-${index}`;
+        return {
+          id,
+          attempts: 0,
+          report: {
+            reportId: id,
+            standId: 'odrs-1',
+            kind: 'STAND_FULL',
+            reportedAt: new Date().toISOString(),
+          },
+        };
+      });
+      localStorage.setItem('driver.reportQueue.v1', JSON.stringify(reports));
+      return reports.map(({ id }) => id);
+    });
+    await action.click();
+    await expect(page.getByText(/The report queue was full/)).toBeVisible();
+    const remaining = await page.evaluate(() =>
+      (JSON.parse(localStorage.getItem('driver.reportQueue.v1') ?? '[]') as { id: string }[]).map(
+        ({ id }) => id,
+      ),
+    );
+    expect(remaining).toEqual(ids);
+  });
 });

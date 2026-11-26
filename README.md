@@ -10,7 +10,7 @@ and charge by distance. Commuters plan A-to-B trips across these modes, see how 
 stand is, and watch vehicles live. Stand marshals report conditions from a one-tap,
 bilingual (English/Hindi) web portal that works with patchy signal.
 
-Pilot: 7 routes and 23 stops around Kashmere Gate, Old Delhi, Chandni Chowk, Red Fort,
+Pilot: 8 routes and 24 stops around Kashmere Gate, Old Delhi, Chandni Chowk, Red Fort,
 Daryaganj–ITO and New Delhi Railway Station–Connaught Place. See the
 [improvement roadmap](docs/transit-improvement-roadmap.md) for planned work and roles.
 
@@ -18,7 +18,8 @@ Daryaganj–ITO and New Delhi Railway Station–Connaught Place. See the
 
 - **Trip planning** for frequency-based routes: walk + up to one transfer, expected waits
   per route (headway, scaled by recent stand reports), per-ride distance fares in ₹, and
-  service hours checked when you reach each ride. Empty results say why.
+  service calendars and hours checked when you reach each ride. Empty results say why.
+  Compare returned options by journey time, estimated fare, or walking time.
 - **Crowdsourced live vehicles**: a commuter on a shared auto or minibus can share the ride.
   Their phone's position is snapped to the route and shown on everyone's map (never stored),
   people waiting further along see "next KG-1 in 2–6 min", and riders can say how full it is.
@@ -30,6 +31,8 @@ Daryaganj–ITO and New Delhi Railway Station–Connaught Place. See the
 - **Map** (MapLibre + OpenFreeMap): selected route, stands coloured by reported queue (grey
   without a report), live vehicles, Nearby radius, long-press / right-click to set start or
   destination.
+- **Delhi bus map layer**: optional vehicle positions from Delhi Open Transit Data, with
+  observation age and attribution. Bus trip planning needs a compatible static feed.
 - **English / हिन्दी** toggle for the commuter planning flow (draft Hindi, needs review).
 - **Nearby lines** within 100 / 300 / 500 m.
 - **Offline**: installable PWA; recent trips and viewed map areas work without signal.
@@ -75,8 +78,8 @@ Or everything in Docker: `docker compose -f deploy/docker-compose.yml up --build
 
 ## Quality gates
 
-`pnpm lint` · `pnpm typecheck` · `pnpm test` (186 TS unit/integration tests) ·
-`pnpm data:test` (18 pipeline tests) · `pnpm e2e` (50 Playwright tests, mobile + desktop).
+`pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm data:test` ·
+`pnpm e2e` (Playwright mobile and desktop profiles).
 All run in CI with the Docker builds and a check that the committed GTFS matches its sources.
 
 ## Docs

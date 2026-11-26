@@ -1,5 +1,5 @@
 import type { PlanResponse } from '@transit/shared-types';
-import { useCallback, useEffect, useEffectEvent, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { fetchPlan, isAbortError } from '../api';
 import { findRecentTrip, saveRecentTrip, tripKey, type RecentTrip } from '../lib/recentTrips';
 import type { TripQuery } from '../types';
@@ -17,8 +17,10 @@ export type PlanState =
     }
   | { status: 'error'; error: Error };
 
-/** What the network said for one request (trip key + retry attempt). */
-type Answer = { request: string } & ({ data: PlanResponse } | { error: Error });
+type RequestIdentity = { key: string; attempt: number };
+type Answer = { request: RequestIdentity } & (
+  Awaited<ReturnType<typeof fetchPlan>> | { error: Error }
+);
 
 /**
  * Fetches itineraries for a trip. A saved copy of the same trip is shown
@@ -30,7 +32,8 @@ export function usePlan(query: TripQuery | null, onSaved?: (trips: RecentTrip[])
   const [attempt, setAttempt] = useState(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const key = query ? tripKey(query.from, query.to) : null;
-  const request = key ? `${key}#${attempt}` : null;
+  // Returning to the same trip starts a new request with its own answer.
+  const request = useMemo(() => (key ? { key, attempt } : null), [key, attempt]);
 
   const latestQuery = useEffectEvent(() => query);
   const saved = useEffectEvent((trips: RecentTrip[]) => onSaved?.(trips));
@@ -50,20 +53,22 @@ export function usePlan(query: TripQuery | null, onSaved?: (trips: RecentTrip[])
       },
       ctrl.signal,
     )
-      .then((data) => {
-        setAnswer({ request, data });
+      .then((result) => {
+        if (ctrl.signal.aborted) return;
+        setAnswer({ request, ...result });
+        if (result.cached) return;
         saved(
           saveRecentTrip({
             key,
             from: { ...q.from, source: 'recent' },
             to: { ...q.to, source: 'recent' },
             savedAt: new Date().toISOString(),
-            plan: data,
+            plan: result.data,
           }),
         );
       })
       .catch((err: unknown) => {
-        if (isAbortError(err)) return;
+        if (ctrl.signal.aborted || isAbortError(err)) return;
         setAnswer({ request, error: err instanceof Error ? err : new Error(String(err)) });
       });
     return () => ctrl.abort();
@@ -76,7 +81,13 @@ export function usePlan(query: TripQuery | null, onSaved?: (trips: RecentTrip[])
   const current = answer?.request === request ? answer : null;
   if (!key) state = { status: 'idle' };
   else if (current && 'data' in current) {
-    state = { status: 'ok', data: current.data, source: 'network', refreshing: false };
+    state = {
+      status: 'ok',
+      data: current.data,
+      source: current.cached ? 'cache' : 'network',
+      savedAt: current.savedAt,
+      refreshing: false,
+    };
   } else if (cached) {
     state = {
       status: 'ok',

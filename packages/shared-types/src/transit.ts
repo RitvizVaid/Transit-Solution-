@@ -74,6 +74,8 @@ export interface Itinerary {
   walkTimeSeconds: number;
   transitTimeSeconds: number;
   estimatedFare: Money;
+  /** True when the total cannot be estimated, even if some legs have known fares. */
+  fareUnavailable?: true;
   congestionLevel: CongestionLevel;
   legs: Leg[];
 }

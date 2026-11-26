@@ -18,7 +18,14 @@ interface Props {
 }
 
 export function ItineraryCard({ itinerary, selected, onSelect, index }: Props) {
-  const { durationSeconds, estimatedFare, congestionLevel, legs, walkTimeSeconds } = itinerary;
+  const {
+    durationSeconds,
+    estimatedFare,
+    fareUnavailable,
+    congestionLevel,
+    legs,
+    walkTimeSeconds,
+  } = itinerary;
   const firstRide = legs.find((l) => l.mode !== 'WALK');
   const congestion = CONGESTION_META[congestionLevel];
   const now = useNow(60_000);
@@ -43,9 +50,11 @@ export function ItineraryCard({ itinerary, selected, onSelect, index }: Props) {
           </span>
           <span className="text-right">
             <span className="text-lg font-semibold text-slate-900 tabular-nums">
-              {formatFare(estimatedFare)}
+              {fareUnavailable ? t('Fare unavailable') : formatFare(estimatedFare)}
             </span>
-            <span className="block text-xs text-slate-500">{t('est. fare')}</span>
+            {!fareUnavailable && (
+              <span className="block text-xs text-slate-500">{t('est. fare')}</span>
+            )}
           </span>
         </span>
         <span className="-mt-1 block text-sm text-slate-500">

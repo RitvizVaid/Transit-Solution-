@@ -121,6 +121,18 @@ export function NearbyList({
             </button>
           )}
         </div>
+        {nearest === undefined && (
+          <div role="alert" className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+            {t('Could not load the closest line.')}{' '}
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-semibold text-teal-800 underline underline-offset-2"
+            >
+              {t('Try again')}
+            </button>
+          </div>
+        )}
         {nearest && (
           <section
             aria-label={t('Closest line')}
@@ -147,6 +159,9 @@ export function NearbyList({
               away; nearest stop <span className="font-medium">{nearest.nearestStop.name}</span> (
               {formatDistance(nearest.nearestStop.distanceMeters)}).
             </p>
+            <p className="mt-1 text-xs text-slate-600">
+              {t('Distances are measured in a straight line.')}
+            </p>
           </section>
         )}
       </div>
@@ -158,6 +173,9 @@ export function NearbyList({
       <h2 className="sr-only">Nearby lines</h2>
       <p className="mb-2 px-1 text-xs text-slate-500" aria-live="polite">
         {lines.length} {lines.length === 1 ? 'line' : 'lines'} within {radius} m
+      </p>
+      <p className="mb-2 px-1 text-xs text-slate-600">
+        {t('Distances are measured in a straight line.')}
       </p>
       <ul className="space-y-2">
         {lines.map((line) => (

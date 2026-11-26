@@ -13,6 +13,8 @@ export interface ServerConfig {
   gtfsDir: string;
   /** OpenTripPlanner base URL, e.g. http://otp:8080. Unset = built-in planner only. */
   otpUrl: string | undefined;
+  /** OTP namespace for the bundled informal feed when the graph has multiple feeds. */
+  otpInformalFeedId?: string;
   /** Private Delhi Open Transit Data key; never sent to clients. */
   delhiOtdApiKey: string | undefined;
   /** SHA-256 digests of per-stand report tokens, keyed by stand id. */
@@ -104,6 +106,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     corsOrigin: env.CORS_ORIGIN ?? true,
     gtfsDir: env.GTFS_DIR ?? resolve(here, '../../../data/gtfs/delhi-pilot'),
     otpUrl: env.OTP_URL || undefined,
+    otpInformalFeedId: env.OTP_INFORMAL_FEED_ID?.trim() || undefined,
     delhiOtdApiKey: env.DELHI_OTD_API_KEY?.trim() || undefined,
     reportTokenHashes,
     adminTokenHash: env.ADMIN_TOKEN ? adminHash(env.ADMIN_TOKEN) : null,

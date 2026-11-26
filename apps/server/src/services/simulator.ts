@@ -1,6 +1,7 @@
 import { REPORT_KINDS, type ReportKind, type VehiclePosition } from '@transit/shared-types';
 import type { TransitNetwork } from '../gtfs/network.js';
-import { IST_OFFSET_SEC } from './time.js';
+import { serviceRuns } from '../gtfs/serviceCalendar.js';
+import { DAY_SECONDS, IST_OFFSET_SEC, localDayIndex } from './time.js';
 
 /** Deterministic PRNG so demos and tests are repeatable. */
 export function mulberry32(seed: number) {
@@ -21,35 +22,42 @@ export function mulberry32(seed: number) {
  * GPS arrives; the WebSocket message format is the same either way.
  */
 export function simulatedPositions(net: TransitNetwork, at: Date): VehiclePosition[] {
-  const sec = (at.getTime() / 1000 + IST_OFFSET_SEC) % 86400;
+  const day = localDayIndex(at);
+  const localSeconds = at.getTime() / 1000 + IST_OFFSET_SEC - day * DAY_SECONDS;
   const out: VehiclePosition[] = [];
   for (const p of net.patterns) {
     const route = net.routes.get(p.routeId);
     if (!route) continue;
     const runtime = p.stops[p.stops.length - 1]!.offsetSec;
-    const firstK = Math.max(0, Math.ceil((sec - runtime - p.serviceStartSec) / p.headwaySec));
-    const lastK = Math.floor((Math.min(sec, p.serviceEndSec) - p.serviceStartSec) / p.headwaySec);
-    for (let k = firstK; k <= lastK; k++) {
-      const elapsed = sec - (p.serviceStartSec + k * p.headwaySec);
-      if (elapsed < 0 || elapsed > runtime) continue;
-      let i = 1;
-      while (i < p.stops.length - 1 && p.stops[i]!.offsetSec < elapsed) i++;
-      const a = p.stops[i - 1]!;
-      const b = p.stops[i]!;
-      const span = b.offsetSec - a.offsetSec;
-      const t = span > 0 ? Math.min(1, (elapsed - a.offsetSec) / span) : 0;
-      const dist = a.distM + (b.distM - a.distM) * t;
-      const { point, bearing } = p.shape.at(dist);
-      out.push({
-        vehicleId: `${p.tripId}#${k}`,
-        routeId: p.routeId,
-        mode: route.mode,
-        coordinates: [Math.round(point.lng * 1e6) / 1e6, Math.round(point.lat * 1e6) / 1e6],
-        bearing: Math.round(bearing),
-        speedKmh: span > 0 ? Math.round(((b.distM - a.distM) / span) * 3.6) : 0,
-        timestamp: at.toISOString(),
-        source: 'simulated',
-      });
+    const firstOffset = Math.max(0, Math.ceil((p.serviceStartSec - localSeconds) / DAY_SECONDS));
+    const lastOffset = Math.floor((p.serviceEndSec + runtime - localSeconds) / DAY_SECONDS);
+    for (let offset = firstOffset; offset <= lastOffset; offset++) {
+      if (!serviceRuns(p.calendar, day - offset)) continue;
+      const sec = localSeconds + offset * DAY_SECONDS;
+      const firstK = Math.max(0, Math.ceil((sec - runtime - p.serviceStartSec) / p.headwaySec));
+      const lastK = Math.floor((Math.min(sec, p.serviceEndSec) - p.serviceStartSec) / p.headwaySec);
+      for (let k = firstK; k <= lastK; k++) {
+        const elapsed = sec - (p.serviceStartSec + k * p.headwaySec);
+        if (elapsed < 0 || elapsed > runtime) continue;
+        let i = 1;
+        while (i < p.stops.length - 1 && p.stops[i]!.offsetSec < elapsed) i++;
+        const a = p.stops[i - 1]!;
+        const b = p.stops[i]!;
+        const span = b.offsetSec - a.offsetSec;
+        const t = span > 0 ? Math.min(1, (elapsed - a.offsetSec) / span) : 0;
+        const dist = a.distM + (b.distM - a.distM) * t;
+        const { point, bearing } = p.shape.at(dist);
+        out.push({
+          vehicleId: `${p.tripId}#${k}`,
+          routeId: p.routeId,
+          mode: route.mode,
+          coordinates: [Math.round(point.lng * 1e6) / 1e6, Math.round(point.lat * 1e6) / 1e6],
+          bearing: Math.round(bearing),
+          speedKmh: span > 0 ? Math.round(((b.distM - a.distM) / span) * 3.6) : 0,
+          timestamp: at.toISOString(),
+          source: 'simulated',
+        });
+      }
     }
   }
   return out;

@@ -1,6 +1,6 @@
 import type { LatLng } from '@transit/shared-types';
 
-const EARTH_RADIUS_M = 6_371_008.8;
+export const EARTH_RADIUS_M = 6_371_008.8;
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 const toDeg = (rad: number) => (rad * 180) / Math.PI;
 

@@ -1,5 +1,5 @@
-import type { NoRouteReason } from '@transit/shared-types';
-import type { ReactNode } from 'react';
+import type { Itinerary, NoRouteReason } from '@transit/shared-types';
+import { useState, type ReactNode } from 'react';
 import type { PlanState } from '../hooks/usePlan';
 import { formatRelativeTime } from '../lib/format';
 import type { RecentTrip } from '../lib/recentTrips';
@@ -8,6 +8,17 @@ import type { Place } from '../types';
 import { ItineraryCard } from './ItineraryCard';
 import { SuggestRoute } from './SuggestRoute';
 import { t } from '../lib/i18n';
+
+const comparison = {
+  recommended: { label: 'Recommended', score: () => 0 },
+  duration: { label: 'Fastest', score: (trip: Itinerary) => trip.durationSeconds },
+  fare: {
+    label: 'Lowest estimated fare',
+    score: (trip: Itinerary) => (trip.fareUnavailable ? Infinity : trip.estimatedFare.amount),
+  },
+  walking: { label: 'Least walking', score: (trip: Itinerary) => trip.walkTimeSeconds },
+};
+type Comparison = keyof typeof comparison;
 
 interface Props {
   plan: PlanState;
@@ -24,6 +35,7 @@ interface Props {
 
 export function TripResults(props: Props) {
   const { plan, online, onRetry, selectedId, onSelect } = props;
+  const [compareBy, setCompareBy] = useState<Comparison>('recommended');
 
   if (props.sameOriginAndDestination) {
     return (
@@ -67,6 +79,12 @@ export function TripResults(props: Props) {
   }
 
   const { itineraries } = plan.data;
+  const savedAge = plan.savedAt ? formatRelativeTime(plan.savedAt) : '';
+  const { score } = comparison[compareBy];
+  const ordered =
+    compareBy === 'recommended'
+      ? itineraries
+      : [...itineraries].sort((a, b) => score(a) - score(b));
   return (
     <div className="space-y-3 p-4">
       <div className="flex items-baseline justify-between" aria-live="polite">
@@ -79,10 +97,29 @@ export function TripResults(props: Props) {
           <span className="text-xs text-slate-500">
             {plan.refreshing
               ? t('Updating…')
-              : t('Saved {time}', { time: formatRelativeTime(plan.savedAt ?? '') })}
+              : savedAge
+                ? t('Saved {time}', { time: savedAge })
+                : t('Saved plan')}
           </span>
         )}
       </div>
+
+      {itineraries.length > 1 && (
+        <label className="flex items-center justify-between gap-3 text-sm font-medium text-slate-700">
+          {t('Compare by')}
+          <select
+            value={compareBy}
+            onChange={(event) => setCompareBy(event.currentTarget.value as Comparison)}
+            className="min-h-11 min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            {Object.entries(comparison).map(([value, { label }]) => (
+              <option key={value} value={value}>
+                {t(label)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {itineraries.length === 0 ? (
         <>
@@ -90,7 +127,7 @@ export function TripResults(props: Props) {
           {props.trip && online && <SuggestRoute from={props.trip.from} to={props.trip.to} />}
         </>
       ) : (
-        itineraries.map((it, i) => (
+        ordered.map((it, i) => (
           <ItineraryCard
             key={it.id}
             itinerary={it}
@@ -186,7 +223,7 @@ export function noRouteText(reason: NoRouteReason | undefined): string {
       );
     case 'outside_service_hours':
       return t(
-        "The routes near these places usually aren't running at this hour. Try again during the day.",
+        'The routes near these places are outside their service schedule. Try a different time or day.',
       );
     default:
       return t(

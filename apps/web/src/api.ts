@@ -39,8 +39,20 @@ const toQuery = (params: object) =>
       .map(([k, v]) => [k, String(v)]),
   ).toString();
 
-export const fetchPlan = (req: PlanRequest, signal?: AbortSignal) =>
-  getJson<PlanResponse>(`/api/v1/plan?${toQuery(req)}`, signal);
+export async function fetchPlan(req: PlanRequest, signal?: AbortSignal) {
+  const path = `/api/v1/plan?${toQuery(req)}`;
+  const res = await fetch(`${config.apiBase}${path}`, {
+    signal,
+    cache: 'no-store',
+    headers: { accept: 'application/json' },
+  });
+  if (!res.ok) throw new ApiError(res.status, path);
+  return {
+    data: (await res.json()) as PlanResponse,
+    cached: res.headers.get('x-transit-plan-cache') === 'hit',
+    savedAt: res.headers.get('x-transit-plan-saved-at') ?? undefined,
+  };
+}
 
 export const fetchStand = (standId: string, signal?: AbortSignal) =>
   getJson<StandStatus>(`/api/v1/stands/${encodeURIComponent(standId)}`, signal);

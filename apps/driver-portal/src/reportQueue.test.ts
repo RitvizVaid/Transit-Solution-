@@ -1,6 +1,6 @@
 import type { StandReport } from '@transit/shared-types';
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_AGE_MS, ReportQueue } from './reportQueue';
+import { MAX_AGE_MS, MAX_QUEUE, ReportQueue } from './reportQueue';
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -54,6 +54,28 @@ describe('ReportQueue', () => {
     expect(q.list()).toHaveLength(1);
   });
 
+  it.each(['ok', 'retry'] as const)('keeps new reports added during a %s send', async (status) => {
+    const q = new ReportQueue(memory(), () => NOW);
+    const first = report('STAND_FULL');
+    const second = report('DEPARTING_NOW');
+    const other = { ...report('STAND_EMPTY'), standId: 'rf-1' };
+    q.enqueue(first);
+
+    const pending = q.flush(async () => {
+      await Promise.resolve();
+      return { status };
+    }, first.standId);
+    q.enqueue(second);
+    q.enqueue(other);
+    await pending;
+
+    expect(q.list().map(({ id, attempts }) => [id, attempts])).toEqual([
+      ...(status === 'retry' ? [[first.reportId, 1]] : []),
+      [second.reportId, 0],
+      [other.reportId, 0],
+    ]);
+  });
+
   it('drops rejected and stale reports', async () => {
     const q = new ReportQueue(memory(), () => NOW);
     q.enqueue(report('HEAVY_TRAFFIC', MAX_AGE_MS / 60_000 + 1)); // too old
@@ -74,6 +96,18 @@ describe('ReportQueue', () => {
     store.setItem('driver.reportQueue.v1', '{nope');
     expect(new ReportQueue(store).list()).toEqual([]);
     expect(new ReportQueue(null).enqueue(report('STAND_FULL')).item.attempts).toBe(0);
+  });
+
+  it('reports a full queue without evicting earlier unsent reports', () => {
+    const q = new ReportQueue(memory(), () => NOW);
+    const queued = Array.from({ length: MAX_QUEUE }, (_, index) => ({
+      ...report('STAND_FULL'),
+      reportId: `queued-${index}`,
+    }));
+    for (const item of queued) expect(q.enqueue(item).persisted).toBe(true);
+
+    expect(q.enqueue(report('DEPARTING_NOW'))).toMatchObject({ persisted: false, reason: 'full' });
+    expect(q.list().map(({ id }) => id)).toEqual(queued.map(({ reportId }) => reportId));
   });
 
   it('keeps reports for another stand until that stand is authorized', async () => {
